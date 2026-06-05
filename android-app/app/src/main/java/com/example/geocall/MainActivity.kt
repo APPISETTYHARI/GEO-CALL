@@ -35,7 +35,8 @@ class MainActivity : ComponentActivity() {
     private val requiredPermissions = arrayOf(
         Manifest.permission.CALL_PHONE,
         Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.READ_PHONE_STATE
     )
 
     private val permissionLauncher =
@@ -150,11 +151,12 @@ class MainActivity : ComponentActivity() {
     inner class NativeBridge {
 
         @JavascriptInterface
-        fun startWatching(geofencesJson: String, autoCall: Boolean) {
-            Log.d(TAG, "NativeBridge.startWatching called with ${geofencesJson.length} chars, autoCall=$autoCall")
+        fun startWatching(geofencesJson: String, autoCall: Boolean, simSlot: Int) {
+            Log.d(TAG, "NativeBridge.startWatching called with ${geofencesJson.length} chars, autoCall=$autoCall, simSlot=$simSlot")
             val intent = Intent(this@MainActivity, GeoWatchService::class.java).apply {
                 putExtra(GeoWatchService.EXTRA_GEOFENCES, geofencesJson)
                 putExtra(GeoWatchService.EXTRA_AUTO_CALL, autoCall)
+                putExtra(GeoWatchService.EXTRA_SIM_SLOT, simSlot)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)

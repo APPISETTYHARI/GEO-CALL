@@ -321,6 +321,56 @@ input[type=range]::-webkit-slider-thumb{
 .autocall-title{font-size:.82rem;font-weight:700;}
 .autocall-desc{font-size:.6rem;color:var(--muted);margin-top:2px;}
 .autocall-panel.off .autocall-title{color:var(--muted);}
+/* ═══ SIM CARD SELECTOR ═══ */
+.sim-selector-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.sim-selector-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.sim-desc {
+  font-size: .62rem;
+  font-weight: 600;
+  color: var(--accent2);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.sim-options {
+  display: flex;
+  gap: 8px;
+}
+.sim-opt {
+  flex: 1;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+  transition: all .25s ease;
+}
+.sim-opt:active {
+  transform: scale(.96);
+}
+.sim-opt.active {
+  background: linear-gradient(135deg, var(--accent2), #00a8ff);
+  border-color: var(--accent2);
+  color: #050510;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
+  font-weight: 700;
+}
 
 /* ═══ SIM PANEL ═══ */
 .toggle-row{
@@ -537,6 +587,19 @@ input[type=range]::-webkit-slider-thumb{
         </div>
       </div>
 
+      <!-- SIM CARD SELECTION -->
+      <div class="sim-selector-panel" id="simPanel" style="margin-top:14px">
+        <div class="sim-selector-title">
+          <span>📶 Calling SIM Card</span>
+          <span class="sim-desc" id="simDesc">Default SIM</span>
+        </div>
+        <div class="sim-options">
+          <div class="sim-opt active" id="simOptDefault" onclick="setSimSlot(-1)">Default</div>
+          <div class="sim-opt" id="simOpt1" onclick="setSimSlot(0)">SIM 1</div>
+          <div class="sim-opt" id="simOpt2" onclick="setSimSlot(1)">SIM 2</div>
+        </div>
+      </div>
+
       <div class="geo-list" id="geoList"></div>
 
       <div class="btn-start-wrap" id="startWrap" style="display:none">
@@ -607,6 +670,7 @@ function createTargetIcon(){
 // ═══════════════════════ STATE ═══════════════════════
 let geofences=JSON.parse(localStorage.getItem('geofences')||'[]');
 let autoCallEnabled=localStorage.getItem('autoCall')!=='false'; // ON by default
+let simSlot=parseInt(localStorage.getItem('simSlot')||'-1'); // -1 = default, 0 = SIM 1, 1 = SIM 2
 let pendingTarget=null,myMarker=null,watching=false,simMode=false;
 let simWalkInterval=null,watchId=null,markers={},routeLine=null;
 let myLat=null,myLng=null,followUser=true,initialDistances={};
@@ -804,7 +868,7 @@ function startWatching(){
     geofences.forEach(g=>{initialDistances[g.id]=haversine(myLat,myLng,g.lat,g.lng);});
   }
 
-  if(isAndroid){nativeCall('startWatching',JSON.stringify(geofences),autoCallEnabled);}
+  if(isAndroid){nativeCall('startWatching',JSON.stringify(geofences),autoCallEnabled,simSlot);}
   else if(!simMode){
     if(!navigator.geolocation){addLog('GPS not supported','err');return;}
     watchId=navigator.geolocation.watchPosition(pos=>{
@@ -911,6 +975,28 @@ function toggleAutoCall(){
   addLog(autoCallEnabled?'Auto Call ON 📞':'Auto Call OFF — manual mode','ok');
 }
 
+// ═══════════════════════ SIM CARD SELECTOR ═══════════════════════
+function setSimSlot(slot){
+  simSlot=slot;
+  localStorage.setItem('simSlot',simSlot);
+  updateSimSelectorUI();
+  addLog('SIM card configured: '+(slot===0?'SIM 1':slot===1?'SIM 2':'Default'),'ok');
+}
+function updateSimSelectorUI(){
+  document.querySelectorAll('.sim-opt').forEach(el=>el.classList.remove('active'));
+  const desc=document.getElementById('simDesc');
+  if(simSlot===0){
+    document.getElementById('simOpt1').classList.add('active');
+    desc.textContent="SIM 1";
+  }else if(simSlot===1){
+    document.getElementById('simOpt2').classList.add('active');
+    desc.textContent="SIM 2";
+  }else{
+    document.getElementById('simOptDefault').classList.add('active');
+    desc.textContent="Default SIM";
+  }
+}
+
 // ═══════════════════════ ALERT ═══════════════════════
 function fireAlert(g){
   document.getElementById('aName').textContent=g.contactName;
@@ -1006,6 +1092,7 @@ render();renderMap();
   sw.className='switch'+(autoCallEnabled?' on-green':'');
   panel.className='autocall-panel'+(autoCallEnabled?'':' off');
   desc.textContent=autoCallEnabled?'Calls placed automatically on arrival':'Manual call only — you tap to call';
+  updateSimSelectorUI();
 })();
 setTimeout(checkPermissions,800);
 // Try to get initial position

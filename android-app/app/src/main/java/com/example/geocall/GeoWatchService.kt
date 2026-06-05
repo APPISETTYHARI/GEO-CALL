@@ -44,6 +44,7 @@ class GeoWatchService : Service(), TextToSpeech.OnInitListener {
         const val NOTIFICATION_ID = 1001
         const val EXTRA_GEOFENCES = "geofences"
         const val EXTRA_AUTO_CALL = "auto_call"
+        const val EXTRA_SIM_SLOT = "sim_slot"
         const val ACTION_GEOFENCE_TRIGGERED = "com.example.geocall.GEOFENCE_TRIGGERED"
         const val EXTRA_GEOFENCE_ID = "geofence_id"
         const val EXTRA_CONTACT_NAME = "contact_name"
@@ -61,6 +62,7 @@ class GeoWatchService : Service(), TextToSpeech.OnInitListener {
     private val handler = Handler(Looper.getMainLooper())
     private var geofences = mutableListOf<GeofenceData>()
     private var autoCallEnabled = true
+    private var simSlot = -1
     private var isRunning = false
 
     override fun onCreate() {
@@ -76,7 +78,8 @@ class GeoWatchService : Service(), TextToSpeech.OnInitListener {
         Log.d(TAG, "Service onStartCommand")
 
         autoCallEnabled = intent?.getBooleanExtra(EXTRA_AUTO_CALL, true) ?: true
-        Log.d(TAG, "autoCallEnabled = $autoCallEnabled")
+        simSlot = intent?.getIntExtra(EXTRA_SIM_SLOT, -1) ?: -1
+        Log.d(TAG, "autoCallEnabled = $autoCallEnabled, simSlot = $simSlot")
 
         val geofencesJson = intent?.getStringExtra(EXTRA_GEOFENCES)
         if (geofencesJson.isNullOrEmpty()) {
@@ -260,6 +263,32 @@ class GeoWatchService : Service(), TextToSpeech.OnInitListener {
                 data = Uri.parse("tel:${Uri.encode(phoneNumber)}")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
+
+            // Set specific SIM card if requested
+            if (simSlot >= 0) {
+                val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? android.telecom.TelecomManager
+                if (telecomManager != null) {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)
+                        == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        try {
+                            val phoneAccounts = telecomManager.callCapablePhoneAccounts
+                            val chosenHandle = phoneAccounts.getOrNull(simSlot)
+                            if (chosenHandle != null) {
+                                callIntent.putExtra("telecom.intent.extra.PHONE_ACCOUNT_HANDLE", chosenHandle)
+                                Log.i(TAG, "Routing call via SIM card slot $simSlot")
+                            } else {
+                                Log.w(TAG, "Requested SIM slot $simSlot but only ${phoneAccounts.size} accounts found, falling back to default")
+                            }
+                        } catch (e: SecurityException) {
+                            Log.e(TAG, "SecurityException reading phone accounts: ${e.message}")
+                        }
+                    } else {
+                        Log.w(TAG, "READ_PHONE_STATE permission not granted, cannot select specific SIM slot")
+                    }
+                }
+            }
+
             startActivity(callIntent)
             Log.i(TAG, "Call placed to $phoneNumber")
         } catch (e: Exception) {
