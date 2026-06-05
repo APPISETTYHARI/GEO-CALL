@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>GeoCall</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#07070e;--surface:rgba(14,14,24,0.92);--card:rgba(22,22,38,0.78);
+  --border:rgba(255,255,255,0.06);--border-glow:rgba(0,232,122,0.18);
+  --accent:#00e87a;--accent2:#00d4ff;--accent-dim:rgba(0,232,122,0.12);--accent-glow:rgba(0,232,122,0.3);
+  --red:#ff3b5c;--red-dim:rgba(255,59,92,0.12);
+  --yellow:#ffc233;--blue:#4e8cff;
+  --text:#eaeaf4;--muted:rgba(255,255,255,0.35);--muted2:rgba(255,255,255,0.18);
+  --radius:14px;--glass:saturate(1.8) blur(20px);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden;touch-action:manipulation;}
+
+/* ═══ HEADER ═══ */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:1100;height:56px;
+  background:linear-gradient(180deg,rgba(7,7,14,0.95),rgba(7,7,14,0.7));
+  backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;padding:0 16px;
+}
+.logo-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 0 12px var(--accent),0 0 24px var(--accent-glow);
+  animation:pulse 2s ease infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+header h1{font-size:1.1rem;font-weight:800;letter-spacing:-.02em;}
+header h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.status-pill{
+  font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 12px;border-radius:20px;border:1px solid var(--border);color:var(--muted);
+  transition:all .4s cubic-bezier(.4,0,.2,1);
+}
+.status-pill.active{
+  border-color:var(--accent);color:var(--accent);background:var(--accent-dim);
+  box-shadow:0 0 16px var(--accent-glow);animation:statusGlow 2s ease infinite;
+}
+@keyframes statusGlow{0%,100%{box-shadow:0 0 16px var(--accent-glow)}50%{box-shadow:0 0 28px var(--accent-glow)}}
+.status-pill.sim{border-color:var(--yellow);color:var(--yellow);background:rgba(255,194,51,0.08);}
+
+.recenter-btn{
+  width:36px;height:36px;border-radius:50%;background:var(--card);
+  border:1px solid var(--border);color:var(--text);font-size:1rem;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .2s;backdrop-filter:blur(8px);
+}
+.recenter-btn:active{transform:scale(.9);background:var(--accent-dim);border-color:var(--accent);}
+
+/* ═══ MAP ═══ */
+#map{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1;background:#0a0a14;}
+.leaflet-control-zoom{display:none!important;}
+.leaflet-control-attribution{display:none!important;}
+
+/* ═══ UBER-STYLE USER MARKER ═══ */
+.user-marker{position:relative;width:44px;height:44px;}
+.user-marker-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:2px solid rgba(78,140,255,0.4);
+  animation:userRing 2s ease-out infinite;
+}
+@keyframes userRing{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.5);opacity:0}}
+.user-marker-ring2{
+  position:absolute;inset:0;border-radius:50%;
+  border:2px solid rgba(78,140,255,0.2);
+  animation:userRing 2s ease-out 0.6s infinite;
+}
+.user-marker-dot{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:18px;height:18px;border-radius:50%;
+  background:linear-gradient(135deg,#4e8cff,#00d4ff);
+  border:3px solid #fff;box-shadow:0 2px 12px rgba(78,140,255,0.5);
+}
+.user-marker-arrow{
+  position:absolute;top:-4px;left:50%;transform:translateX(-50%);
+  width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
+  border-bottom:8px solid #4e8cff;filter:drop-shadow(0 0 4px rgba(78,140,255,0.5));
+}
+
+/* ═══ TARGET MARKER ═══ */
+.target-marker{position:relative;width:40px;height:52px;}
+.target-pin{
+  width:40px;height:40px;border-radius:50% 50% 50% 4px;
+  background:linear-gradient(135deg,var(--accent),#00b864);
+  transform:rotate(-45deg);box-shadow:0 0 20px var(--accent-glow);
+  display:flex;align-items:center;justify-content:center;
+  animation:targetFloat 3s ease infinite;
+}
+@keyframes targetFloat{0%,100%{transform:rotate(-45deg) translateY(0)}50%{transform:rotate(-45deg) translateY(-4px)}}
+.target-pin-inner{
+  width:14px;height:14px;border-radius:50%;background:rgba(0,0,0,0.3);
+  transform:rotate(45deg);
+}
+.target-shadow{
+  position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
+  width:20px;height:6px;border-radius:50%;background:rgba(0,232,122,0.2);
+  filter:blur(2px);animation:targetShadow 3s ease infinite;
+}
+@keyframes targetShadow{0%,100%{transform:translateX(-50%) scale(1);opacity:.4}50%{transform:translateX(-50%) scale(.7);opacity:.2}}
+
+/* ═══ ROUTE LINE ═══ */
+.route-line{stroke:var(--accent);stroke-dasharray:10,6;stroke-dashoffset:0;animation:routeDash 1s linear infinite;}
+@keyframes routeDash{to{stroke-dashoffset:-16}}
+
+/* ═══ DISTANCE HUD — UBER STYLE ═══ */
+.dist-hud{
+  position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:900;
+  background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
+  border:1px solid var(--border);border-radius:16px;padding:8px 20px;
+  text-align:center;transition:all .4s cubic-bezier(.4,0,.2,1);
+  display:none;min-width:140px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+.dist-hud.show{display:block;animation:hudSlide .4s cubic-bezier(.4,0,.2,1);}
+@keyframes hudSlide{from{transform:translateX(-50%) translateY(-20px);opacity:0}to{transform:translateX(-50%);opacity:1}}
+.dist-hud.close{border-color:var(--accent);box-shadow:0 0 24px var(--accent-glow),0 8px 32px rgba(0,0,0,0.4);}
+.dist-val{font-size:1.6rem;font-weight:900;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
+.dist-label{font-size:.5rem;font-weight:600;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:3px;}
+.dist-contact{font-size:.65rem;font-weight:600;color:var(--accent);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+
+/* ═══ ETA BAR (Uber style) ═══ */
+.eta-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:1000;
+  transition:transform .5s cubic-bezier(.4,0,.2,1);
+  transform:translateY(100%);
+}
+.eta-bar.show{transform:translateY(0);}
+.eta-card{
+  background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
+  border-top:1px solid var(--border-glow);border-radius:24px 24px 0 0;
+  padding:0 20px 28px;
+  box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+}
+.eta-handle{width:36px;height:4px;border-radius:2px;background:var(--muted2);margin:14px auto 16px;cursor:pointer;}
+
+/* ETA: tracking view */
+.eta-tracking{display:none;}
+.eta-tracking.show{display:block;animation:fadeIn .4s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.eta-row{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.eta-avatar{
+  width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent-dim),rgba(0,212,255,0.1));
+  border:2px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;font-weight:800;color:var(--accent);flex-shrink:0;
+  box-shadow:0 0 16px var(--accent-glow);
+}
+.eta-info{flex:1;min-width:0;}
+.eta-name{font-size:1rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.eta-phone{font-size:.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.eta-dist-pill{
+  font-size:.75rem;font-weight:700;font-family:'JetBrains Mono',monospace;
+  color:var(--accent);background:var(--accent-dim);
+  padding:6px 14px;border-radius:20px;flex-shrink:0;
+  border:1px solid rgba(0,232,122,0.2);
+}
+
+.eta-progress{margin-bottom:16px;}
+.eta-progress-bar{height:4px;background:var(--card);border-radius:2px;overflow:hidden;}
+.eta-progress-fill{
+  height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;
+  transition:width .8s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px var(--accent-glow);
+}
+.eta-progress-text{display:flex;justify-content:space-between;margin-top:6px;font-size:.55rem;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+
+.btn-row{display:flex;gap:8px;}
+.btn{
+  flex:1;padding:14px;border:none;border-radius:14px;
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.82rem;
+  letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
+  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+}
+.btn-stop{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,59,92,0.2);}
+.btn-stop:active{transform:scale(.97);}
+
+/* ETA: setup view */
+.eta-setup{display:block;}
+.eta-setup.hide{display:none;}
+
+.setup-section{margin-bottom:14px;}
+.lbl{font-size:.6rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+
+.search-wrap{position:relative;}
+input[type=text],input[type=tel]{
+  width:100%;background:var(--card);backdrop-filter:blur(6px);
+  border:1px solid var(--border);color:var(--text);
+  font-family:'Inter',sans-serif;font-size:.82rem;font-weight:400;
+  padding:12px 14px;border-radius:12px;outline:none;transition:all .3s cubic-bezier(.4,0,.2,1);
+}
+input::placeholder{color:var(--muted);}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim),0 0 20px rgba(0,232,122,0.08);}
+
+#suggestions{
+  position:absolute;bottom:100%;left:0;right:0;z-index:300;
+  background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-bottom:none;
+  border-radius:12px 12px 0 0;max-height:200px;overflow-y:auto;
+}
+.sugg{padding:11px 14px;font-size:.75rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);line-height:1.4;transition:all .15s;}
+.sugg:last-child{border-bottom:none;}
+.sugg:active{background:var(--accent-dim);color:var(--accent);}
+.sugg small{display:block;font-size:.6rem;color:var(--muted);margin-top:2px;}
+
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:6px;background:var(--card);
+  border-radius:3px;border:1px solid var(--border);outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));border:3px solid var(--bg);
+  box-shadow:0 0 12px var(--accent-glow);cursor:pointer;
+}
+.rlabel{text-align:right;font-size:.72rem;font-weight:700;color:var(--accent);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+
+.row-inline{display:flex;gap:8px;}
+.row-inline>*{flex:1;}
+
+.btn-add{
+  width:100%;padding:14px;border:none;border-radius:14px;
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.82rem;
+  letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),#00c96a);color:#000;
+  box-shadow:0 4px 24px var(--accent-glow);
+  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+}
+.btn-add:active{transform:scale(.97);box-shadow:0 2px 12px var(--accent-glow);}
+.btn-add:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-add::after{
+  content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+  transition:left .6s;
+}
+.btn-add:not(:disabled):active::after{left:100%;}
+
+/* ═══ SAVED GEOFENCES (UBER TRIP CARDS) ═══ */
+.geo-list{margin:14px 0;}
+.geo-card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+  transition:all .3s cubic-bezier(.4,0,.2,1);animation:cardIn .3s ease;
+  position:relative;overflow:hidden;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.geo-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:0 2px 2px 0;
+  opacity:0;transition:opacity .3s;
+}
+.geo-card:active::before{opacity:1;}
+.geo-card.triggered{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow);}
+.geo-card.triggered::before{opacity:1;}
+
+.geo-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent-dim),rgba(0,212,255,0.08));
+  display:flex;align-items:center;justify-content:center;
+  font-size:.9rem;font-weight:800;color:var(--accent);flex-shrink:0;
+}
+.geo-info{flex:1;min-width:0;}
+.geo-name{font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.geo-meta{font-size:.6rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px;display:flex;align-items:center;gap:6px;}
+.geo-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--muted);}
+.geo-del{
+  width:32px;height:32px;border-radius:50%;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.75rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;
+}
+.geo-del:active{border-color:var(--red);color:var(--red);background:var(--red-dim);transform:scale(.9);}
+
+/* ═══ START WATCHING BUTTON ═══ */
+.btn-start-wrap{margin-top:8px;}
+.btn-start{
+  width:100%;padding:16px;border:none;border-radius:14px;
+  font-family:'Inter',sans-serif;font-weight:800;font-size:.9rem;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),#00c96a,var(--accent2));
+  background-size:200% 200%;animation:gradientShift 4s ease infinite;
+  color:#000;box-shadow:0 6px 30px var(--accent-glow);
+  transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.btn-start:active{transform:scale(.97);box-shadow:0 2px 16px var(--accent-glow);}
+
+/* ═══ AUTO CALL TOGGLE ═══ */
+.autocall-panel{
+  background:linear-gradient(135deg,rgba(0,232,122,0.06),rgba(0,212,255,0.04));
+  border:1px solid rgba(0,232,122,0.15);border-radius:14px;
+  padding:14px 16px;margin-bottom:14px;position:relative;overflow:hidden;
+}
+.autocall-panel::before{
+  content:'';position:absolute;top:0;left:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:2px;
+}
+.autocall-panel.off{background:var(--card);border-color:var(--border);}
+.autocall-panel.off::before{background:var(--muted2);}
+.autocall-row{display:flex;align-items:center;gap:12px;}
+.autocall-icon{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),#00c96a);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;flex-shrink:0;
+  box-shadow:0 0 16px var(--accent-glow);
+  transition:all .3s;
+}
+.autocall-panel.off .autocall-icon{background:var(--card);box-shadow:none;}
+.autocall-info{flex:1;}
+.autocall-title{font-size:.82rem;font-weight:700;}
+.autocall-desc{font-size:.6rem;color:var(--muted);margin-top:2px;}
+.autocall-panel.off .autocall-title{color:var(--muted);}
+
+/* ═══ SIM PANEL ═══ */
+.toggle-row{
+  display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--border);
+  margin-top:8px;
+}
+.sim-row{
+  display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--border);
+  margin-top:8px;
+}
+.sim-icon{font-size:.85rem;}
+.sim-label{font-size:.65rem;font-weight:600;color:var(--yellow);letter-spacing:.04em;flex:1;}
+.switch{
+  width:40px;height:22px;border-radius:11px;background:var(--card);
+  border:1px solid var(--border);position:relative;transition:all .25s ease;cursor:pointer;
+}
+.switch.on{background:var(--yellow);border-color:var(--yellow);}
+.switch.on-green{background:var(--accent);border-color:var(--accent);}
+.switch::after{
+  content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;
+  border-radius:50%;background:#fff;transition:all .25s ease;box-shadow:0 1px 4px rgba(0,0,0,0.2);
+}
+.switch.on::after,.switch.on-green::after{left:20px;}
+.btn-sim-walk{
+  margin-top:8px;width:100%;padding:10px;border:1px solid rgba(255,194,51,0.2);
+  border-radius:10px;background:rgba(255,194,51,0.06);color:var(--yellow);
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.7rem;
+  letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:all .15s;
+}
+.btn-sim-walk:active{background:rgba(255,194,51,0.12);transform:scale(.97);}
+
+/* ═══ LOG PANEL ═══ */
+.log-section{border-top:1px solid var(--border);padding-top:10px;margin-top:8px;}
+.log{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px;font-size:.55rem;font-family:'JetBrains Mono',monospace;
+  color:var(--muted);line-height:2;max-height:80px;overflow-y:auto;
+}
+.log .ok{color:var(--accent);display:block;}.log .warn{color:var(--yellow);display:block;}
+.log .err{color:var(--red);display:block;}.log .inf{color:var(--text);display:block;}
+
+/* ═══ ALERT OVERLAY ═══ */
+.overlay{
+  display:none;position:fixed;inset:0;z-index:2000;
+  background:rgba(0,0,0,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  align-items:center;justify-content:center;
+}
+.overlay.show{display:flex;}
+.abox{
+  background:linear-gradient(180deg,rgba(14,14,24,0.95),rgba(7,7,14,0.98));
+  border:1px solid var(--accent);border-radius:24px;padding:40px 28px;
+  max-width:320px;width:90%;text-align:center;
+  box-shadow:0 0 80px var(--accent-glow),0 0 160px rgba(0,232,122,0.06);
+  animation:alertPop .4s cubic-bezier(.2,0,.1,1);
+}
+@keyframes alertPop{from{transform:scale(.8) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+
+.call-icon{
+  width:72px;height:72px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),#00c96a);
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;margin:0 auto 20px;
+  box-shadow:0 0 40px var(--accent-glow),0 0 80px rgba(0,232,122,0.15);
+  animation:callRing .5s ease infinite alternate;
+}
+@keyframes callRing{from{transform:rotate(-12deg) scale(1)}to{transform:rotate(12deg) scale(1.08)}}
+
+.abox h2{font-size:1.2rem;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+.abox .subtitle{font-size:.7rem;color:var(--muted);margin-bottom:20px;}
+.abox .aname{font-size:1.2rem;font-weight:800;margin:10px 0 4px;}
+.abox .anum{font-size:.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:24px;}
+.btn-call{
+  width:100%;padding:16px;
+  background:linear-gradient(135deg,var(--accent),#00c96a);
+  color:#000;border:none;border-radius:14px;
+  font-family:'Inter',sans-serif;font-weight:800;font-size:.9rem;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;margin-bottom:10px;
+  box-shadow:0 6px 28px var(--accent-glow);transition:all .15s;
+}
+.btn-call:active{transform:scale(.97);}
+.btn-dis{
+  background:none;border:1px solid var(--border);border-radius:10px;padding:12px;
+  color:var(--muted);font-size:.72rem;cursor:pointer;width:100%;
+  font-family:'Inter',sans-serif;font-weight:600;transition:all .15s;
+}
+.btn-dis:active{border-color:var(--muted);color:var(--text);}
+
+/* ═══ PERMISSION BANNER ═══ */
+.perm-banner{
+  position:fixed;top:56px;left:12px;right:12px;z-index:1050;
+  background:rgba(255,59,92,0.1);backdrop-filter:blur(12px);
+  border:1px solid rgba(255,59,92,0.2);border-radius:14px;
+  padding:12px 16px;display:none;align-items:center;gap:10px;
+  font-size:.72rem;color:var(--red);font-weight:500;
+  animation:bannerIn .4s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+}
+.perm-banner.show{display:flex;}
+@keyframes bannerIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.perm-banner button{
+  margin-left:auto;padding:8px 16px;border:1px solid var(--red);
+  border-radius:8px;background:var(--red-dim);color:var(--red);
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.65rem;
+  cursor:pointer;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase;
+}
+
+/* ═══ MAP OVERLAY GRADIENT ═══ */
+.map-gradient-top{
+  position:fixed;top:0;left:0;right:0;height:120px;z-index:2;
+  background:linear-gradient(180deg,rgba(7,7,14,0.8) 0%,transparent 100%);
+  pointer-events:none;
+}
+.map-gradient-bottom{
+  position:fixed;bottom:0;left:0;right:0;height:180px;z-index:2;
+  background:linear-gradient(0deg,rgba(7,7,14,0.9) 0%,transparent 100%);
+  pointer-events:none;
+}
+</style>
+</head>
+<body>
+
+<div class="map-gradient-top"></div>
+<div class="map-gradient-bottom"></div>
+
+<header>
+  <div class="logo-dot"></div>
+  <h1>Geo<span>Call</span></h1>
+  <div class="header-actions">
+    <div class="status-pill" id="statusPill">IDLE</div>
+    <div class="recenter-btn" id="recenterBtn" onclick="recenterMap()">⊕</div>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<div class="dist-hud" id="distHud">
+  <div class="dist-val" id="distVal">--</div>
+  <div class="dist-label">to nearest</div>
+  <div class="dist-contact" id="distContact"></div>
+</div>
+
+<div id="permBanner" class="perm-banner">
+  <span>⚠️ Permissions required for auto-call</span>
+  <button onclick="requestPerms()">Grant</button>
+</div>
+
+<!-- UBER-STYLE BOTTOM BAR -->
+<div class="eta-bar show" id="etaBar">
+  <div class="eta-card">
+    <div class="eta-handle" id="etaHandle"></div>
+
+    <!-- TRACKING VIEW -->
+    <div class="eta-tracking" id="etaTracking">
+      <div class="eta-row">
+        <div class="eta-avatar" id="etaAvatar">A</div>
+        <div class="eta-info">
+          <div class="eta-name" id="etaName">--</div>
+          <div class="eta-phone" id="etaPhone">--</div>
+        </div>
+        <div class="eta-dist-pill" id="etaDist">--</div>
+      </div>
+      <div class="eta-progress">
+        <div class="eta-progress-bar"><div class="eta-progress-fill" id="etaFill" style="width:0%"></div></div>
+        <div class="eta-progress-text">
+          <span>APPROACHING</span>
+          <span id="etaPct">0%</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-stop" onclick="stopWatching()">⏹ Stop</button>
+      </div>
+
+      <div class="sim-row" id="simRowTracking" style="display:none">
+        <span class="sim-icon">🧪</span>
+        <span class="sim-label">Simulation</span>
+        <button class="btn-sim-walk" onclick="startSimWalk()" style="width:auto;margin:0;padding:8px 14px;">▶ Walk</button>
+      </div>
+    </div>
+
+    <!-- SETUP VIEW -->
+    <div class="eta-setup" id="etaSetup">
+      <div class="setup-section">
+        <div class="lbl">📍 Where are you going?</div>
+        <div class="search-wrap">
+          <input type="text" id="placeSearch" placeholder="Search a place..." autocomplete="off"/>
+          <div id="suggestions"></div>
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <div class="row-inline">
+          <div><div class="lbl">Contact</div><input type="text" id="contactName" placeholder="Name"/></div>
+          <div><div class="lbl">Phone</div><input type="tel" id="phoneNum" placeholder="+91 ..."/></div>
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <div class="lbl">Trigger Radius</div>
+        <input type="range" id="radiusSlider" min="50" max="3000" value="300" step="50"/>
+        <div class="rlabel" id="radiusVal">300 m</div>
+      </div>
+
+      <button class="btn-add" id="addBtn" onclick="addGeofence()">＋ Add Geofence</button>
+
+      <!-- AUTO CALL TOGGLE -->
+      <div class="autocall-panel" id="autocallPanel" style="margin-top:14px">
+        <div class="autocall-row">
+          <div class="autocall-icon">📞</div>
+          <div class="autocall-info">
+            <div class="autocall-title">Auto Call</div>
+            <div class="autocall-desc" id="autocallDesc">Calls placed automatically on arrival</div>
+          </div>
+          <div class="switch on-green" id="autocallSwitch" onclick="toggleAutoCall()"></div>
+        </div>
+      </div>
+
+      <div class="geo-list" id="geoList"></div>
+
+      <div class="btn-start-wrap" id="startWrap" style="display:none">
+        <button class="btn-start" onclick="startWatching()">▶ Start Watching</button>
+      </div>
+
+      <div class="sim-row">
+        <span class="sim-icon">🧪</span>
+        <span class="sim-label">Simulation Mode</span>
+        <div class="switch" id="simSwitch" onclick="toggleSim()"></div>
+      </div>
+
+      <div class="log-section">
+        <div class="lbl" style="margin-bottom:4px">Log</div>
+        <div class="log" id="log"><span class="inf">Ready. Add a geofence.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CALL ALERT -->
+<div class="overlay" id="overlay">
+  <div class="abox">
+    <div class="call-icon">📞</div>
+    <h2>You've Arrived!</h2>
+    <p class="subtitle">Entered the trigger zone</p>
+    <div class="aname" id="aName"></div>
+    <div class="anum" id="aNum"></div>
+    <button class="btn-call" id="callBtn">📞 Call Now</button>
+    <button class="btn-dis" id="dismissBtn">Dismiss</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════ NATIVE BRIDGE ═══════════════════════
+const isAndroid = typeof NativeBridge !== 'undefined';
+function nativeCall(m,...a){if(isAndroid)try{return NativeBridge[m](...a)}catch(e){}}
+
+// ═══════════════════════ DARK MAP ═══════════════════════
+const map = L.map('map',{zoomControl:false,attributionControl:false}).setView([20.5937,78.9629],5);
+
+// Dark tile layer (CartoDB Dark Matter - Uber-like)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  maxZoom:20,subdomains:'abcd'
+}).addTo(map);
+
+// Custom markers
+function createUserIcon(){
+  return L.divIcon({
+    html:`<div class="user-marker">
+      <div class="user-marker-ring"></div><div class="user-marker-ring2"></div>
+      <div class="user-marker-dot"></div>
+      <div class="user-marker-arrow"></div>
+    </div>`,
+    iconSize:[44,44],iconAnchor:[22,22],className:''
+  });
+}
+function createTargetIcon(){
+  return L.divIcon({
+    html:`<div class="target-marker">
+      <div class="target-pin"><div class="target-pin-inner"></div></div>
+      <div class="target-shadow"></div>
+    </div>`,
+    iconSize:[40,52],iconAnchor:[20,46],className:''
+  });
+}
+
+// ═══════════════════════ STATE ═══════════════════════
+let geofences=JSON.parse(localStorage.getItem('geofences')||'[]');
+let autoCallEnabled=localStorage.getItem('autoCall')!=='false'; // ON by default
+let pendingTarget=null,myMarker=null,watching=false,simMode=false;
+let simWalkInterval=null,watchId=null,markers={},routeLine=null;
+let myLat=null,myLng=null,followUser=true,initialDistances={};
+let pendingPin=null,pendingCircle=null;
+
+// ═══════════════════════ SHEET TOGGLE ═══════════════════════
+let etaExpanded=true;
+document.getElementById('etaHandle').addEventListener('click',()=>{
+  etaExpanded=!etaExpanded;
+  // Simple toggle - could add animation
+});
+
+// ═══════════════════════ PLACE SEARCH ═══════════════════════
+let searchTimer=null;
+const inp=document.getElementById('placeSearch');
+const sugBox=document.getElementById('suggestions');
+
+inp.addEventListener('input',()=>{
+  clearTimeout(searchTimer);
+  const q=inp.value.trim();
+  if(q.length<2){sugBox.innerHTML='';return;}
+  searchTimer=setTimeout(()=>searchPlace(q),350);
+});
+
+async function searchPlace(q){
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&countrycodes=in&format=json&limit=5&addressdetails=1`;
+    const r=await fetch(url,{headers:{'Accept-Language':'en','User-Agent':'GeoCallApp/2.0'}});
+    const d=await r.json();
+    sugBox.innerHTML='';
+    if(!d.length){sugBox.innerHTML='<div class="sugg" style="color:var(--muted)">No results found</div>';return;}
+    d.forEach(item=>{
+      const parts=item.display_name.split(',');
+      const div=document.createElement('div');
+      div.className='sugg';
+      div.innerHTML=`${parts.slice(0,2).join(',')}<small>${parts.slice(2,4).join(',')}</small>`;
+      div.addEventListener('click',()=>{
+        inp.value=parts.slice(0,2).join(', ').trim();
+        sugBox.innerHTML='';
+        const lat=parseFloat(item.lat),lng=parseFloat(item.lon);
+        pendingTarget={lat,lng,name:parts[0].trim()};
+        showPendingOnMap(lat,lng,parts[0].trim());
+        map.flyTo([lat,lng],15,{duration:1.2});
+      });
+      sugBox.appendChild(div);
+    });
+  }catch(e){addLog('Search failed: '+e.message,'err');}
+}
+
+// ═══════════════════════ PENDING PIN ═══════════════════════
+function showPendingOnMap(lat,lng,name){
+  const radius=parseInt(document.getElementById('radiusSlider').value);
+  if(pendingPin)map.removeLayer(pendingPin);
+  if(pendingCircle)map.removeLayer(pendingCircle);
+  pendingPin=L.marker([lat,lng],{icon:createTargetIcon()}).addTo(map);
+  pendingCircle=L.circle([lat,lng],{
+    radius,color:'#00e87a',fillColor:'#00e87a',fillOpacity:.06,
+    weight:1.5,dashArray:'8,6',className:'route-line'
+  }).addTo(map);
+}
+
+map.on('click',e=>{
+  if(simMode&&watching){
+    animateMyPosition(e.latlng.lat,e.latlng.lng);
+    addLog(`Sim: ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`,'warn');
+  }else{
+    const name=`${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+    pendingTarget={lat:e.latlng.lat,lng:e.latlng.lng,name};
+    showPendingOnMap(e.latlng.lat,e.latlng.lng,name);
+  }
+});
+
+document.getElementById('radiusSlider').addEventListener('input',function(){
+  const r=parseInt(this.value);
+  document.getElementById('radiusVal').textContent=r>=1000?(r/1000).toFixed(1)+' km':r+' m';
+  if(pendingCircle)pendingCircle.setRadius(r);
+});
+
+// ═══════════════════════ SMOOTH MARKER ANIMATION ═══════════════════════
+function animateMyPosition(toLat,toLng){
+  if(!myMarker){
+    myLat=toLat;myLng=toLng;
+    myMarker=L.marker([toLat,toLng],{icon:createUserIcon(),zIndexOffset:1000}).addTo(map);
+    if(watching)checkGeofences(toLat,toLng);
+    return;
+  }
+  const fromLat=myLat,fromLng=myLng;
+  const steps=20;let step=0;
+  const anim=()=>{
+    step++;
+    const t=step/steps;
+    const ease=t<.5?2*t*t:(4-2*t)*t-1; // ease in-out
+    myLat=fromLat+(toLat-fromLat)*ease;
+    myLng=fromLng+(toLng-fromLng)*ease;
+    myMarker.setLatLng([myLat,myLng]);
+    if(routeLine&&geofences.length)updateRouteLine();
+    if(step<steps)requestAnimationFrame(anim);
+    else if(watching)checkGeofences(myLat,myLng);
+  };
+  requestAnimationFrame(anim);
+  if(followUser)map.panTo([toLat,toLng],{animate:true,duration:.6});
+}
+
+function updateRouteLine(){
+  if(!myLat||!geofences.length)return;
+  const nearest=geofences.filter(g=>!g.triggered&&g.enabled)
+    .sort((a,b)=>haversine(myLat,myLng,a.lat,a.lng)-haversine(myLat,myLng,b.lat,b.lng))[0];
+  if(!nearest)return;
+  const pts=[[myLat,myLng],[nearest.lat,nearest.lng]];
+  if(routeLine)routeLine.setLatLngs(pts);
+  else{
+    routeLine=L.polyline(pts,{
+      color:'#00e87a',weight:3,opacity:.6,dashArray:'10,8',
+      className:'route-line'
+    }).addTo(map);
+  }
+}
+
+// ═══════════════════════ RECENTER ═══════════════════════
+function recenterMap(){
+  followUser=true;
+  if(myLat)map.flyTo([myLat,myLng],16,{duration:.8});
+  else if(geofences.length)map.flyTo([geofences[0].lat,geofences[0].lng],14,{duration:.8});
+}
+map.on('dragstart',()=>{followUser=false;});
+
+// ═══════════════════════ GEOFENCE MANAGEMENT ═══════════════════════
+function addGeofence(){
+  if(!pendingTarget){addLog('Set a location first!','warn');return;}
+  const name=document.getElementById('contactName').value.trim()||'Contact';
+  const phone=document.getElementById('phoneNum').value.trim();
+  if(!phone||phone.length<4){addLog('Enter a valid phone!','warn');return;}
+  const radius=parseInt(document.getElementById('radiusSlider').value);
+  const gf={
+    id:Date.now().toString(36)+Math.random().toString(36).substr(2,4),
+    lat:pendingTarget.lat,lng:pendingTarget.lng,placeName:pendingTarget.name,
+    radius,contactName:name,phoneNumber:phone,enabled:true,triggered:false
+  };
+  geofences.push(gf);save();render();renderMap();
+  if(pendingPin){map.removeLayer(pendingPin);pendingPin=null;}
+  if(pendingCircle){map.removeLayer(pendingCircle);pendingCircle=null;}
+  pendingTarget=null;
+  document.getElementById('contactName').value='';
+  document.getElementById('phoneNum').value='';
+  inp.value='';
+  addLog(`✓ Added: ${name} @ ${gf.placeName}`,'ok');
+}
+
+function deleteGeofence(id){
+  geofences=geofences.filter(g=>g.id!==id);save();render();renderMap();
+  addLog('Removed geofence','warn');
+}
+
+function save(){localStorage.setItem('geofences',JSON.stringify(geofences));}
+
+function render(){
+  const list=document.getElementById('geoList');
+  list.innerHTML='';
+  document.getElementById('startWrap').style.display=geofences.length&&!watching?'block':'none';
+  geofences.forEach(g=>{
+    const card=document.createElement('div');
+    card.className='geo-card'+(g.triggered?' triggered':'');
+    card.innerHTML=`
+      <div class="geo-avatar">${g.contactName.charAt(0).toUpperCase()}</div>
+      <div class="geo-info">
+        <div class="geo-name">${g.contactName}</div>
+        <div class="geo-meta">${g.phoneNumber}<span class="dot"></span>${g.placeName}<span class="dot"></span>${g.radius}m</div>
+      </div>
+      <button class="geo-del" onclick="event.stopPropagation();deleteGeofence('${g.id}')">✕</button>`;
+    card.addEventListener('click',()=>map.flyTo([g.lat,g.lng],15,{duration:.8}));
+    list.appendChild(card);
+  });
+}
+
+function renderMap(){
+  Object.values(markers).forEach(m=>{if(m.pin)map.removeLayer(m.pin);if(m.circle)map.removeLayer(m.circle);});
+  markers={};
+  geofences.forEach(g=>{
+    const pin=L.marker([g.lat,g.lng],{icon:createTargetIcon()}).addTo(map);
+    const circle=L.circle([g.lat,g.lng],{
+      radius:g.radius,color:g.triggered?'#ff3b5c':'#00e87a',
+      fillColor:g.triggered?'#ff3b5c':'#00e87a',fillOpacity:.05,
+      weight:1.5,dashArray:'8,6'
+    }).addTo(map);
+    markers[g.id]={pin,circle};
+  });
+}
+
+// ═══════════════════════ WATCHING ═══════════════════════
+function startWatching(){
+  geofences.forEach(g=>g.triggered=false);save();
+
+  // Record initial distances for progress bar
+  if(myLat){
+    geofences.forEach(g=>{initialDistances[g.id]=haversine(myLat,myLng,g.lat,g.lng);});
+  }
+
+  if(isAndroid){nativeCall('startWatching',JSON.stringify(geofences),autoCallEnabled);}
+  else if(!simMode){
+    if(!navigator.geolocation){addLog('GPS not supported','err');return;}
+    watchId=navigator.geolocation.watchPosition(pos=>{
+      animateMyPosition(pos.coords.latitude,pos.coords.longitude);
+    },err=>addLog('GPS: '+err.message,'err'),
+    {enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+  }
+
+  watching=true;
+  document.getElementById('etaSetup').classList.add('hide');
+  document.getElementById('etaTracking').classList.add('show');
+  document.getElementById('simRowTracking').style.display=simMode?'flex':'none';
+
+  const pill=document.getElementById('statusPill');
+  pill.textContent=simMode?'SIM':'LIVE';
+  pill.className='status-pill '+(simMode?'sim':'active');
+
+  const hud=document.getElementById('distHud');
+  hud.classList.add('show');
+
+  updateEtaCard();render();renderMap();
+  addLog(simMode?'SIM started — tap map to move':'GPS tracking started','ok');
+}
+
+function stopWatching(){
+  if(isAndroid)nativeCall('stopWatching');
+  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+  if(simWalkInterval){clearInterval(simWalkInterval);simWalkInterval=null;}
+  if(routeLine){map.removeLayer(routeLine);routeLine=null;}
+  watching=false;
+  geofences.forEach(g=>g.triggered=false);save();
+
+  document.getElementById('etaSetup').classList.remove('hide');
+  document.getElementById('etaTracking').classList.remove('show');
+  document.getElementById('statusPill').textContent='IDLE';
+  document.getElementById('statusPill').className='status-pill';
+  document.getElementById('distHud').classList.remove('show');
+
+  render();renderMap();
+  addLog('Stopped','warn');
+}
+
+function updateEtaCard(){
+  if(!geofences.length)return;
+  const g=geofences.find(g=>!g.triggered&&g.enabled)||geofences[0];
+  document.getElementById('etaAvatar').textContent=g.contactName.charAt(0).toUpperCase();
+  document.getElementById('etaName').textContent=g.contactName;
+  document.getElementById('etaPhone').textContent=g.phoneNumber;
+}
+
+// ═══════════════════════ GEOFENCE CHECK ═══════════════════════
+function checkGeofences(lat,lng){
+  let nearest=Infinity,nearestG=null;
+  geofences.forEach(g=>{
+    if(g.triggered)return;
+    const d=haversine(lat,lng,g.lat,g.lng);
+    if(d<nearest){nearest=d;nearestG=g;}
+    if(d<=g.radius){
+      g.triggered=true;save();render();renderMap();fireAlert(g);
+    }
+  });
+
+  // Update HUD
+  if(nearestG){
+    const hud=document.getElementById('distHud');
+    const val=document.getElementById('distVal');
+    const ct=document.getElementById('distContact');
+    val.textContent=nearest>=1000?(nearest/1000).toFixed(1)+'km':Math.round(nearest)+'m';
+    ct.textContent=nearestG.contactName;
+    hud.className='dist-hud show'+(nearest<500?' close':'');
+
+    // ETA card
+    document.getElementById('etaDist').textContent=nearest>=1000?(nearest/1000).toFixed(1)+'km':Math.round(nearest)+'m';
+
+    // Progress bar
+    const initD=initialDistances[nearestG.id]||nearest;
+    if(initD>0){
+      const pct=Math.max(0,Math.min(100,(1-nearest/initD)*100));
+      document.getElementById('etaFill').style.width=pct+'%';
+      document.getElementById('etaPct').textContent=Math.round(pct)+'%';
+    }
+  }
+
+  updateRouteLine();
+}
+
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371000,r=x=>x*Math.PI/180;
+  const dLat=r(lat2-lat1),dLng=r(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ═══════════════════════ AUTO CALL TOGGLE ═══════════════════════
+function toggleAutoCall(){
+  autoCallEnabled=!autoCallEnabled;
+  localStorage.setItem('autoCall',autoCallEnabled);
+  const sw=document.getElementById('autocallSwitch');
+  const panel=document.getElementById('autocallPanel');
+  const desc=document.getElementById('autocallDesc');
+  sw.className='switch'+(autoCallEnabled?' on-green':'');
+  panel.className='autocall-panel'+(autoCallEnabled?'':' off');
+  desc.textContent=autoCallEnabled?'Calls placed automatically on arrival':'Manual call only — you tap to call';
+  addLog(autoCallEnabled?'Auto Call ON 📞':'Auto Call OFF — manual mode','ok');
+}
+
+// ═══════════════════════ ALERT ═══════════════════════
+function fireAlert(g){
+  document.getElementById('aName').textContent=g.contactName;
+  document.getElementById('aNum').textContent=g.phoneNumber;
+  document.getElementById('overlay').classList.add('show');
+  if(navigator.vibrate)navigator.vibrate([300,100,300,100,600]);
+  if('speechSynthesis' in window){
+    const msg=autoCallEnabled?`Arriving near ${g.contactName}. Auto calling now.`:`Arriving near ${g.contactName}. Tap to call.`;
+    const u=new SpeechSynthesisUtterance(msg);
+    u.rate=0.9;speechSynthesis.speak(u);
+  }
+  if(autoCallEnabled){
+    addLog(`🚨 ARRIVED! Auto-calling ${g.contactName}...`,'ok');
+    // On Android, service handles auto-call. Dismiss overlay after delay.
+    if(isAndroid)setTimeout(()=>document.getElementById('overlay').classList.remove('show'),5000);
+  }else{
+    addLog(`📍 ARRIVED near ${g.contactName}. Tap to call.`,'warn');
+  }
+}
+document.getElementById('callBtn').addEventListener('click',()=>{
+  const p=document.getElementById('aNum').textContent.replace(/\s/g,'');
+  window.location.href='tel:'+p;
+  document.getElementById('overlay').classList.remove('show');
+});
+document.getElementById('dismissBtn').addEventListener('click',()=>{
+  document.getElementById('overlay').classList.remove('show');
+  addLog('Dismissed','warn');
+});
+
+// ═══════════════════════ SIMULATION ═══════════════════════
+function toggleSim(){
+  simMode=!simMode;
+  document.getElementById('simSwitch').classList.toggle('on',simMode);
+  addLog(simMode?'Simulation ON':'Simulation OFF',simMode?'warn':'inf');
+}
+
+function startSimWalk(){
+  if(!geofences.length){addLog('No geofences!','warn');return;}
+  if(!watching)startWatching();
+  const target=geofences.find(g=>!g.triggered)||geofences[0];
+  let lat=target.lat+0.006,lng=target.lng+0.006;
+  animateMyPosition(lat,lng);
+  initialDistances[target.id]=haversine(lat,lng,target.lat,target.lng);
+  map.flyTo([lat,lng],15,{duration:.8});
+  addLog(`Walking to ${target.contactName}...`,'warn');
+  if(simWalkInterval)clearInterval(simWalkInterval);
+  simWalkInterval=setInterval(()=>{
+    const dLat=target.lat-lat,dLng=target.lng-lng;
+    const dist=Math.sqrt(dLat*dLat+dLng*dLng);
+    if(dist<0.00003){clearInterval(simWalkInterval);simWalkInterval=null;return;}
+    const step=0.00015;
+    lat+=(dLat/dist)*step;lng+=(dLng/dist)*step;
+    animateMyPosition(lat,lng);
+  },700);
+}
+
+// ═══════════════════════ PERMISSIONS ═══════════════════════
+function requestPerms(){if(isAndroid)nativeCall('requestPermissions');else addLog('Browser-managed','inf');}
+function checkPermissions(){
+  if(isAndroid){
+    const ok=nativeCall('hasCallPermission')&&nativeCall('hasLocationPermission');
+    document.getElementById('permBanner').classList.toggle('show',!ok);
+  }
+}
+window.onPermissionsResult=function(ok){
+  document.getElementById('permBanner').classList.toggle('show',!ok);
+  addLog(ok?'Permissions granted ✓':'Permissions denied','ok');
+};
+window.onGeofenceTriggered=function(id){
+  const g=geofences.find(gf=>gf.id===id);
+  if(g){g.triggered=true;save();render();renderMap();fireAlert(g);}
+};
+
+// ═══════════════════════ LOG ═══════════════════════
+function addLog(msg,type='inf'){
+  const log=document.getElementById('log');
+  const now=new Date();
+  const t=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  const el=document.createElement('span');
+  el.className=type;el.textContent=`[${t}] ${msg}`;
+  log.appendChild(el);log.scrollTop=log.scrollHeight;
+}
+
+document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))sugBox.innerHTML='';});
+
+// ═══════════════════════ INIT ═══════════════════════
+render();renderMap();
+// Init auto-call toggle UI
+(function initAutoCallUI(){
+  const sw=document.getElementById('autocallSwitch');
+  const panel=document.getElementById('autocallPanel');
+  const desc=document.getElementById('autocallDesc');
+  sw.className='switch'+(autoCallEnabled?' on-green':'');
+  panel.className='autocall-panel'+(autoCallEnabled?'':' off');
+  desc.textContent=autoCallEnabled?'Calls placed automatically on arrival':'Manual call only — you tap to call';
+})();
+setTimeout(checkPermissions,800);
+// Try to get initial position
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(p=>{
+    animateMyPosition(p.coords.latitude,p.coords.longitude);
+    map.flyTo([p.coords.latitude,p.coords.longitude],14,{duration:1.5});
+  },()=>{},{enableHighAccuracy:true,timeout:10000});
+}
+</script>
+</body>
+</html>

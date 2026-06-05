@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>GeoCall</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#0b0b13; --surface:#14141f; --card:#1c1c2b;
+    --border:#252538; --accent:#00e87a; --red:#ff3b5c;
+    --text:#e4e4f0; --muted:#5a5a80;
+  }
+  html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Space Mono',monospace; }
+
+  header {
+    position:fixed; top:0; left:0; right:0; z-index:1100;
+    height:52px; background:var(--surface); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; padding:0 16px;
+  }
+  .dot { width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.4} }
+  header h1 { font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800;letter-spacing:.05em; }
+  header h1 span { color:var(--accent); }
+  #statusBadge {
+    margin-left:auto; font-size:.6rem; letter-spacing:.1em; text-transform:uppercase;
+    padding:3px 9px; border-radius:20px; border:1px solid var(--border); color:var(--muted);
+  }
+  #statusBadge.active { border-color:var(--accent);color:var(--accent);background:rgba(0,232,122,.07); }
+
+  #map { position:fixed; top:52px; left:0; right:0; bottom:0; z-index:1; }
+
+  .sheet {
+    position:fixed; bottom:0; left:0; right:0; z-index:1000;
+    background:var(--surface); border-top:1px solid var(--border);
+    border-radius:16px 16px 0 0; padding:0 16px 28px;
+    transition:transform .35s cubic-bezier(.4,0,.2,1);
+    max-height:78vh; overflow-y:auto;
+  }
+  .sheet.collapsed { transform:translateY(calc(100% - 52px)); }
+
+  .handle-row {
+    display:flex; align-items:center; justify-content:center;
+    padding:12px 0 10px; cursor:pointer; gap:8px;
+  }
+  .handle { width:40px;height:4px;border-radius:2px;background:var(--border); }
+  .toggle-hint { font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase; }
+
+  .row { display:flex;flex-direction:column;gap:5px;margin-bottom:14px; }
+  .lbl { font-size:.6rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase; }
+
+  .search-wrap { position:relative; }
+  input[type=text],input[type=tel] {
+    width:100%;background:var(--card);border:1px solid var(--border);
+    color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;
+    padding:10px 12px;border-radius:6px;outline:none;transition:border-color .2s;
+  }
+  input:focus { border-color:var(--accent); }
+
+  #suggestions {
+    position:absolute;top:100%;left:0;right:0;z-index:300;
+    background:var(--card);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;
+  }
+  .sugg {
+    padding:9px 12px;font-size:.72rem;color:var(--text);
+    cursor:pointer;border-bottom:1px solid var(--border);line-height:1.4;
+  }
+  .sugg:last-child{border-bottom:none;}
+  .sugg:hover{background:rgba(0,232,122,.07);color:var(--accent);}
+  .sugg small{display:block;font-size:.6rem;color:var(--muted);}
+
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;}
+  .rlabel{text-align:right;font-size:.7rem;color:var(--accent);margin-top:-2px;}
+
+  .btn{width:100%;padding:12px;border:none;border-radius:6px;font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+  .btn-start{background:var(--accent);color:#000;margin-bottom:8px;}
+  .btn-start:hover{filter:brightness(1.1);}
+  .btn-start:disabled{opacity:.35;cursor:not-allowed;}
+  .btn-stop{background:transparent;color:var(--red);border:1px solid var(--red);margin-bottom:8px;}
+
+  .log{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.6rem;color:var(--muted);line-height:1.9;max-height:90px;overflow-y:auto;}
+  .log .ok{color:var(--accent);display:block;}
+  .log .warn{color:#ffcc00;display:block;}
+  .log .err{color:var(--red);display:block;}
+  .log .inf{color:var(--text);display:block;}
+
+  .chip {
+    position:fixed;top:60px;left:50%;transform:translateX(-50%);
+    background:rgba(20,20,31,.92);border:1px solid var(--border);
+    border-radius:20px;padding:5px 14px;font-size:.65rem;color:var(--muted);
+    z-index:500;white-space:nowrap;backdrop-filter:blur(4px);pointer-events:none;
+  }
+
+  .overlay{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);align-items:center;justify-content:center;}
+  .overlay.show{display:flex;}
+  .abox{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:30px 24px;max-width:320px;width:90%;text-align:center;box-shadow:0 0 50px rgba(0,232,122,.18);animation:pop .3s ease;}
+  @keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+  .bell{font-size:2.4rem;display:block;margin-bottom:10px;animation:shake .5s ease infinite alternate;}
+  @keyframes shake{from{transform:rotate(-8deg)}to{transform:rotate(8deg)}}
+  .abox h2{font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--accent);margin-bottom:6px;}
+  .abox .aname{font-size:1rem;margin:8px 0 2px;}
+  .abox .anum{font-size:.75rem;color:var(--muted);margin-bottom:18px;}
+  .btn-call{width:100%;padding:13px;background:var(--accent);color:#000;border:none;border-radius:6px;font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;margin-bottom:8px;}
+  .btn-dis{background:none;border:none;color:var(--muted);font-size:.7rem;cursor:pointer;width:100%;font-family:'Space Mono',monospace;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="dot"></div>
+  <h1>Geo<span>Call</span></h1>
+  <div id="statusBadge">IDLE</div>
+</header>
+
+<div id="map"></div>
+<div class="chip" id="chip">📍 Search a place or tap the map</div>
+
+<div class="sheet" id="sheet">
+  <div class="handle-row" id="handleRow">
+    <div class="handle"></div>
+    <span class="toggle-hint" id="toggleHint">tap to expand</span>
+  </div>
+
+  <div class="row">
+    <div class="lbl">Search Place (India)</div>
+    <div class="search-wrap">
+      <input type="text" id="placeSearch" placeholder="e.g. Ongole, Hyderabad, Delhi..." autocomplete="off"/>
+      <div id="suggestions"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lbl">Contact Name</div>
+    <input type="text" id="contactName" placeholder="e.g. Amma"/>
+  </div>
+
+  <div class="row">
+    <div class="lbl">Phone Number</div>
+    <input type="tel" id="phoneNum" placeholder="+91 9876543210"/>
+  </div>
+
+  <div class="row">
+    <div class="lbl">Trigger Radius</div>
+    <input type="range" id="radiusSlider" min="50" max="3000" value="300" step="50"/>
+    <div class="rlabel" id="radiusVal">300 m</div>
+  </div>
+
+  <button class="btn btn-start" id="startBtn" disabled>Start Watching</button>
+  <button class="btn btn-stop" id="stopBtn" style="display:none">Stop Watching</button>
+
+  <div class="lbl" style="margin-bottom:4px">Log</div>
+  <div class="log" id="log"><span class="inf">Ready. Set a location to begin.</span></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="abox">
+    <span class="bell">📞</span>
+    <h2>You've Arrived!</h2>
+    <p style="font-size:.72rem;color:var(--muted)">You entered the trigger zone.</p>
+    <div class="aname" id="aName"></div>
+    <div class="anum" id="aNum"></div>
+    <button class="btn-call" id="callBtn">Call Now</button>
+    <button class="btn-dis" id="dismissBtn">Dismiss</button>
+  </div>
+</div>
+
+<script>
+// MAP
+const map = L.map('map',{zoomControl:false}).setView([20.5937,78.9629],5);
+L.control.zoom({position:'topright'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap contributors',
+  maxZoom:19
+}).addTo(map);
+
+// ICONS
+const pinIcon = L.divIcon({
+  html:`<div style="width:22px;height:22px;background:#00e87a;border:3px solid #000;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 0 12px #00e87a"></div>`,
+  iconSize:[22,22],iconAnchor:[11,22],className:''
+});
+const meIcon = L.divIcon({
+  html:`<div style="width:14px;height:14px;background:#ff3b5c;border:3px solid #fff;border-radius:50%;box-shadow:0 0 10px #ff3b5c"></div>`,
+  iconSize:[14,14],iconAnchor:[7,7],className:''
+});
+
+// STATE
+let targetLL=null,pinM=null,circleM=null,myM=null;
+let watchId=null,triggered=false,radius=300;
+
+// SHEET TOGGLE
+let open=false;
+document.getElementById('handleRow').addEventListener('click',()=>{
+  open=!open;
+  document.getElementById('sheet').classList.toggle('collapsed',!open);
+  document.getElementById('toggleHint').textContent=open?'tap to collapse':'tap to expand';
+});
+setTimeout(()=>{ open=true; document.getElementById('sheet').classList.remove('collapsed'); document.getElementById('toggleHint').textContent='tap to collapse'; },300);
+
+// PLACE SEARCH
+let timer=null;
+const inp=document.getElementById('placeSearch');
+const sugBox=document.getElementById('suggestions');
+
+inp.addEventListener('input',()=>{
+  clearTimeout(timer);
+  const q=inp.value.trim();
+  if(q.length<2){sugBox.innerHTML='';return;}
+  timer=setTimeout(()=>search(q),450);
+});
+
+async function search(q){
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&countrycodes=in&format=json&limit=6&addressdetails=1`;
+    const r=await fetch(url,{headers:{'Accept-Language':'en','User-Agent':'GeoCallApp/1.0'}});
+    const d=await r.json();
+    sugBox.innerHTML='';
+    if(!d.length){sugBox.innerHTML='<div class="sugg" style="color:#5a5a80">No results</div>';return;}
+    d.forEach(item=>{
+      const parts=item.display_name.split(',');
+      const div=document.createElement('div');
+      div.className='sugg';
+      div.innerHTML=`${parts.slice(0,2).join(',')}<small>${parts.slice(2,4).join(',')}</small>`;
+      div.addEventListener('click',()=>{
+        inp.value=parts.slice(0,2).join(',').trim();
+        sugBox.innerHTML='';
+        placePin(parseFloat(item.lat),parseFloat(item.lon),parts[0].trim());
+        map.setView([item.lat,item.lon],14);
+      });
+      sugBox.appendChild(div);
+    });
+  }catch(e){addLog('Search failed: '+e.message,'err');}
+}
+
+function placePin(lat,lng,name){
+  targetLL=L.latLng(lat,lng);
+  if(pinM) map.removeLayer(pinM);
+  if(circleM) map.removeLayer(circleM);
+  pinM=L.marker([lat,lng],{icon:pinIcon}).addTo(map);
+  circleM=L.circle([lat,lng],{radius,color:'#00e87a',fillColor:'#00e87a',fillOpacity:.08,weight:1.5,dashArray:'6 4'}).addTo(map);
+  document.getElementById('chip').textContent='📍 '+name;
+  addLog('Target set: '+name,'ok');
+  updateBtn();
+}
+
+// MAP CLICK
+map.on('click',e=>{
+  placePin(e.latlng.lat,e.latlng.lng,`${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`);
+});
+
+// RADIUS
+document.getElementById('radiusSlider').addEventListener('input',function(){
+  radius=parseInt(this.value);
+  document.getElementById('radiusVal').textContent=radius>=1000?(radius/1000).toFixed(1)+' km':radius+' m';
+  if(circleM) circleM.setRadius(radius);
+});
+
+// VALIDATION
+function updateBtn(){
+  const phone=document.getElementById('phoneNum').value.trim();
+  document.getElementById('startBtn').disabled=!(targetLL&&phone.length>3);
+}
+document.getElementById('contactName').addEventListener('input',updateBtn);
+document.getElementById('phoneNum').addEventListener('input',updateBtn);
+
+// LOG
+function addLog(msg,type='inf'){
+  const log=document.getElementById('log');
+  const now=new Date();
+  const t=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  const el=document.createElement('span');
+  el.className=type;
+  el.textContent=`[${t}] ${msg}`;
+  log.appendChild(el);
+  log.scrollTop=log.scrollHeight;
+}
+
+// DISTANCE
+function dist(lat1,lng1,lat2,lng2){
+  const R=6371000,r=x=>x*Math.PI/180;
+  const dLat=r(lat2-lat1),dLng=r(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// START
+document.getElementById('startBtn').addEventListener('click',()=>{
+  if(!navigator.geolocation){addLog('GPS not supported','err');return;}
+  triggered=false;
+  document.getElementById('startBtn').style.display='none';
+  document.getElementById('stopBtn').style.display='block';
+  const b=document.getElementById('statusBadge');
+  b.textContent='WATCHING';b.classList.add('active');
+  addLog('GPS watching started','ok');
+
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const {latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
+    if(!myM) myM=L.marker([lat,lng],{icon:meIcon}).addTo(map);
+    else myM.setLatLng([lat,lng]);
+    const d=dist(lat,lng,targetLL.lat,targetLL.lng);
+    const ds=d>=1000?(d/1000).toFixed(1)+'km':Math.round(d)+'m';
+    addLog(`You: ${lat.toFixed(4)},${lng.toFixed(4)} | Dist: ${ds}`,d<=radius?'ok':'inf');
+    if(d<=radius&&!triggered){triggered=true;fireAlert();}
+  },
+  err=>addLog('GPS error: '+err.message,'err'),
+  {enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+});
+
+// STOP
+document.getElementById('stopBtn').addEventListener('click',()=>{
+  if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+  watchId=null;triggered=false;
+  document.getElementById('startBtn').style.display='block';
+  document.getElementById('stopBtn').style.display='none';
+  const b=document.getElementById('statusBadge');
+  b.textContent='IDLE';b.classList.remove('active');
+  addLog('Stopped.','warn');
+});
+
+// ALERT
+function fireAlert(){
+  const name=document.getElementById('contactName').value.trim()||'Contact';
+  const phone=document.getElementById('phoneNum').value.trim();
+  document.getElementById('aName').textContent=name;
+  document.getElementById('aNum').textContent=phone;
+  document.getElementById('overlay').classList.add('show');
+  if(navigator.vibrate) navigator.vibrate([300,100,300,100,300]);
+  addLog('ARRIVED! Calling alert fired.','ok');
+}
+
+document.getElementById('callBtn').addEventListener('click',()=>{
+  const phone=document.getElementById('phoneNum').value.trim().replace(/\s/g,'');
+  window.location.href='tel:'+phone;
+  document.getElementById('overlay').classList.remove('show');
+});
+document.getElementById('dismissBtn').addEventListener('click',()=>{
+  document.getElementById('overlay').classList.remove('show');
+  addLog('Dismissed.','warn');
+});
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search-wrap')) sugBox.innerHTML='';
+});
+</script>
+</body>
+</html>
