@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
                 allowContentAccess = true
                 setGeolocationEnabled(true)
                 mediaPlaybackRequiresUserGesture = false
+                cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
             }
 
             webViewClient = WebViewClient()
