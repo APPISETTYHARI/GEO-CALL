@@ -201,6 +201,18 @@ class MainActivity : ComponentActivity() {
         fun log(message: String) {
             Log.d("GeoCallJS", message)
         }
+
+        @JavascriptInterface
+        fun scheduleCall(id: String, name: String, phone: String, timestampMs: Double) {
+            Log.d(TAG, "NativeBridge.scheduleCall: id=$id, name=$name, phone=$phone, time=$timestampMs")
+            CallScheduler.schedule(this@MainActivity, id, name, phone, timestampMs.toLong())
+        }
+
+        @JavascriptInterface
+        fun cancelScheduledCall(id: String) {
+            Log.d(TAG, "NativeBridge.cancelScheduledCall: id=$id")
+            CallScheduler.cancel(this@MainActivity, id)
+        }
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
