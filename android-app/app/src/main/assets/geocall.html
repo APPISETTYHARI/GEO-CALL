@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
 <title>GeoCall</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -10,59 +10,99 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#07070e;--surface:rgba(14,14,24,0.92);--card:rgba(22,22,38,0.78);
+  --bg:#07070e;--surface:rgba(14,14,24,0.96);--card:rgba(22,22,38,0.85);
   --border:rgba(255,255,255,0.06);--border-glow:rgba(0,232,122,0.18);
   --accent:#00e87a;--accent2:#00d4ff;--accent-dim:rgba(0,232,122,0.12);--accent-glow:rgba(0,232,122,0.3);
   --red:#ff3b5c;--red-dim:rgba(255,59,92,0.12);
   --yellow:#ffc233;--blue:#4e8cff;
   --text:#eaeaf4;--muted:rgba(255,255,255,0.35);--muted2:rgba(255,255,255,0.18);
   --radius:14px;--glass:saturate(1.8) blur(20px);
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --header-h:52px;
+  --sheet-peek:68px;
+  --sheet-half:46vh;
+  --sheet-full:calc(100vh - var(--header-h) - var(--safe-top));
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden;touch-action:manipulation;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden;touch-action:manipulation;overscroll-behavior:none;}
 
 /* ═══ HEADER ═══ */
 header{
-  position:fixed;top:0;left:0;right:0;z-index:1100;height:56px;
-  background:linear-gradient(180deg,rgba(7,7,14,0.95),rgba(7,7,14,0.7));
+  position:fixed;top:0;left:0;right:0;z-index:1100;
+  height:calc(var(--header-h) + var(--safe-top));
+  padding-top:var(--safe-top);
+  background:linear-gradient(180deg,rgba(7,7,14,0.96),rgba(7,7,14,0.85));
   backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
   border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:10px;padding:0 16px;
+  display:flex;align-items:center;gap:10px;padding-left:14px;padding-right:14px;
 }
 .logo-dot{
-  width:10px;height:10px;border-radius:50%;
+  width:9px;height:9px;border-radius:50%;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
-  box-shadow:0 0 12px var(--accent),0 0 24px var(--accent-glow);
+  box-shadow:0 0 10px var(--accent),0 0 20px var(--accent-glow);
   animation:pulse 2s ease infinite;
 }
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
-header h1{font-size:1.1rem;font-weight:800;letter-spacing:-.02em;}
+header h1{font-size:1rem;font-weight:800;letter-spacing:-.02em;}
 header h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 
-.header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:6px;}
 .status-pill{
-  font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  padding:5px 12px;border-radius:20px;border:1px solid var(--border);color:var(--muted);
+  font-size:.5rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:4px 10px;border-radius:20px;border:1px solid var(--border);color:var(--muted);
   transition:all .4s cubic-bezier(.4,0,.2,1);
 }
 .status-pill.active{
   border-color:var(--accent);color:var(--accent);background:var(--accent-dim);
-  box-shadow:0 0 16px var(--accent-glow);animation:statusGlow 2s ease infinite;
+  box-shadow:0 0 14px var(--accent-glow);animation:statusGlow 2s ease infinite;
 }
-@keyframes statusGlow{0%,100%{box-shadow:0 0 16px var(--accent-glow)}50%{box-shadow:0 0 28px var(--accent-glow)}}
+@keyframes statusGlow{0%,100%{box-shadow:0 0 14px var(--accent-glow)}50%{box-shadow:0 0 24px var(--accent-glow)}}
 .status-pill.sim{border-color:var(--yellow);color:var(--yellow);background:rgba(255,194,51,0.08);}
 
+/* Map style switcher in header */
+.map-style-btn{
+  width:32px;height:32px;border-radius:50%;background:var(--card);
+  border:1px solid var(--border);color:var(--text);font-size:.85rem;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .2s;backdrop-filter:blur(8px);
+}
+.map-style-btn:active{transform:scale(.9);background:var(--accent-dim);border-color:var(--accent);}
+
 .recenter-btn{
-  width:36px;height:36px;border-radius:50%;background:var(--card);
-  border:1px solid var(--border);color:var(--text);font-size:1rem;
+  width:32px;height:32px;border-radius:50%;background:var(--card);
+  border:1px solid var(--border);color:var(--text);font-size:.85rem;
   display:flex;align-items:center;justify-content:center;cursor:pointer;
   transition:all .2s;backdrop-filter:blur(8px);
 }
 .recenter-btn:active{transform:scale(.9);background:var(--accent-dim);border-color:var(--accent);}
 
-/* ═══ MAP ═══ */
+/* ═══ MAP — FULL VIEWPORT ═══ */
 #map{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1;background:#0a0a14;}
 .leaflet-control-zoom{display:none!important;}
 .leaflet-control-attribution{display:none!important;}
+
+/* ═══ MAP STYLE DROPDOWN ═══ */
+.map-style-dropdown{
+  display:none;position:fixed;top:calc(var(--header-h) + var(--safe-top) + 4px);
+  right:10px;z-index:1200;
+  background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
+  border:1px solid var(--border);border-radius:12px;
+  padding:6px 0;min-width:140px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  animation:dropIn .2s ease;
+}
+.map-style-dropdown.show{display:block;}
+@keyframes dropIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.map-style-opt{
+  padding:10px 14px;font-size:.72rem;font-weight:600;color:var(--text);
+  cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s;
+}
+.map-style-opt:active{background:var(--accent-dim);}
+.map-style-opt.active{color:var(--accent);}
+.map-style-opt .dot{width:18px;height:18px;border-radius:4px;flex-shrink:0;border:1px solid var(--border);}
+.dot-standard{background:linear-gradient(135deg,#e8e4d8,#c8d8c0);}
+.dot-dark{background:linear-gradient(135deg,#1a1a2e,#0a0a14);}
+.dot-satellite{background:linear-gradient(135deg,#2a4a2a,#1a3a3a);}
 
 /* ═══ UBER-STYLE USER MARKER ═══ */
 .user-marker{position:relative;width:44px;height:44px;}
@@ -114,130 +154,149 @@ header h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2));-
 .route-line{stroke:var(--accent);stroke-dasharray:10,6;stroke-dashoffset:0;animation:routeDash 1s linear infinite;}
 @keyframes routeDash{to{stroke-dashoffset:-16}}
 
-/* ═══ DISTANCE HUD — UBER STYLE ═══ */
+/* ═══ DISTANCE HUD — FLOATING ═══ */
 .dist-hud{
-  position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:900;
+  position:fixed;top:calc(var(--header-h) + var(--safe-top) + 8px);left:50%;transform:translateX(-50%);z-index:900;
   background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-  border:1px solid var(--border);border-radius:16px;padding:8px 20px;
+  border:1px solid var(--border);border-radius:14px;padding:6px 16px;
   text-align:center;transition:all .4s cubic-bezier(.4,0,.2,1);
-  display:none;min-width:140px;
-  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  display:none;min-width:120px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.4);
 }
 .dist-hud.show{display:block;animation:hudSlide .4s cubic-bezier(.4,0,.2,1);}
-@keyframes hudSlide{from{transform:translateX(-50%) translateY(-20px);opacity:0}to{transform:translateX(-50%);opacity:1}}
-.dist-hud.close{border-color:var(--accent);box-shadow:0 0 24px var(--accent-glow),0 8px 32px rgba(0,0,0,0.4);}
-.dist-val{font-size:1.6rem;font-weight:900;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
-.dist-label{font-size:.5rem;font-weight:600;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:3px;}
-.dist-contact{font-size:.65rem;font-weight:600;color:var(--accent);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+@keyframes hudSlide{from{transform:translateX(-50%) translateY(-16px);opacity:0}to{transform:translateX(-50%);opacity:1}}
+.dist-hud.close{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow),0 4px 24px rgba(0,0,0,0.4);}
+.dist-val{font-size:1.4rem;font-weight:900;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
+.dist-label{font-size:.45rem;font-weight:600;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
+.dist-contact{font-size:.6rem;font-weight:600;color:var(--accent);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
 
-/* ═══ ETA BAR (Uber style) ═══ */
-.eta-bar{
-  position:fixed;bottom:0;left:0;right:0;z-index:1000;
-  transition:transform .5s cubic-bezier(.4,0,.2,1);
-  transform:translateY(100%);
+/* ═══ BOTTOM SHEET — DRAGGABLE ═══ */
+.bottom-sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:1000;
+  transition:transform .35s cubic-bezier(.32,.72,0,1);
+  will-change:transform;
 }
-.eta-bar.show{transform:translateY(0);}
-.eta-card{
+.bottom-sheet.dragging{transition:none;}
+.sheet-inner{
   background:var(--surface);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-  border-top:1px solid var(--border-glow);border-radius:24px 24px 0 0;
-  padding:0 20px 28px;
-  box-shadow:0 -8px 40px rgba(0,0,0,0.5);
+  border-top:1px solid var(--border-glow);border-radius:20px 20px 0 0;
+  min-height:100vh;
+  box-shadow:0 -4px 32px rgba(0,0,0,0.5);
+  display:flex;flex-direction:column;
 }
-.eta-handle{width:36px;height:4px;border-radius:2px;background:var(--muted2);margin:14px auto 16px;cursor:pointer;}
 
-/* ETA: tracking view */
+/* Drag handle area */
+.sheet-handle-area{
+  padding:10px 0 6px;cursor:grab;touch-action:none;flex-shrink:0;
+}
+.sheet-handle{
+  width:36px;height:4px;border-radius:2px;background:var(--muted2);margin:0 auto;
+  transition:background .2s;
+}
+.sheet-handle-area:active .sheet-handle{background:var(--accent);}
+
+/* Sheet scrollable content */
+.sheet-content{
+  flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px 28px;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  padding-bottom:calc(28px + var(--safe-bottom));
+}
+.sheet-content::-webkit-scrollbar{width:2px;}
+.sheet-content::-webkit-scrollbar-thumb{background:var(--muted2);border-radius:1px;}
+
+/* ═══ ETA TRACKING VIEW ═══ */
 .eta-tracking{display:none;}
 .eta-tracking.show{display:block;animation:fadeIn .4s ease;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-.eta-row{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.eta-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .eta-avatar{
-  width:48px;height:48px;border-radius:50%;
+  width:44px;height:44px;border-radius:50%;
   background:linear-gradient(135deg,var(--accent-dim),rgba(0,212,255,0.1));
   border:2px solid var(--accent);
   display:flex;align-items:center;justify-content:center;
-  font-size:1.1rem;font-weight:800;color:var(--accent);flex-shrink:0;
-  box-shadow:0 0 16px var(--accent-glow);
+  font-size:1rem;font-weight:800;color:var(--accent);flex-shrink:0;
+  box-shadow:0 0 14px var(--accent-glow);
 }
 .eta-info{flex:1;min-width:0;}
-.eta-name{font-size:1rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.eta-phone{font-size:.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.eta-name{font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.eta-phone{font-size:.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;}
 .eta-dist-pill{
-  font-size:.75rem;font-weight:700;font-family:'JetBrains Mono',monospace;
+  font-size:.7rem;font-weight:700;font-family:'JetBrains Mono',monospace;
   color:var(--accent);background:var(--accent-dim);
-  padding:6px 14px;border-radius:20px;flex-shrink:0;
+  padding:5px 12px;border-radius:20px;flex-shrink:0;
   border:1px solid rgba(0,232,122,0.2);
 }
 
-.eta-progress{margin-bottom:16px;}
+.eta-progress{margin-bottom:14px;}
 .eta-progress-bar{height:4px;background:var(--card);border-radius:2px;overflow:hidden;}
 .eta-progress-fill{
   height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;
   transition:width .8s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px var(--accent-glow);
 }
-.eta-progress-text{display:flex;justify-content:space-between;margin-top:6px;font-size:.55rem;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+.eta-progress-text{display:flex;justify-content:space-between;margin-top:5px;font-size:.5rem;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
 
 .btn-row{display:flex;gap:8px;}
 .btn{
-  flex:1;padding:14px;border:none;border-radius:14px;
-  font-family:'Inter',sans-serif;font-weight:700;font-size:.82rem;
+  flex:1;padding:13px;border:none;border-radius:12px;
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.78rem;
   letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
   transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
 }
 .btn-stop{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,59,92,0.2);}
 .btn-stop:active{transform:scale(.97);}
 
-/* ETA: setup view */
+/* ═══ SETUP VIEW ═══ */
 .eta-setup{display:block;}
 .eta-setup.hide{display:none;}
 
-.setup-section{margin-bottom:14px;}
-.lbl{font-size:.6rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+.setup-section{margin-bottom:12px;}
+.lbl{font-size:.55rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
 
 .search-wrap{position:relative;}
 input[type=text],input[type=tel]{
   width:100%;background:var(--card);backdrop-filter:blur(6px);
   border:1px solid var(--border);color:var(--text);
-  font-family:'Inter',sans-serif;font-size:.82rem;font-weight:400;
-  padding:12px 14px;border-radius:12px;outline:none;transition:all .3s cubic-bezier(.4,0,.2,1);
+  font-family:'Inter',sans-serif;font-size:.8rem;font-weight:400;
+  padding:11px 12px;border-radius:10px;outline:none;transition:all .3s cubic-bezier(.4,0,.2,1);
 }
 input::placeholder{color:var(--muted);}
-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim),0 0 20px rgba(0,232,122,0.08);}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim),0 0 16px rgba(0,232,122,0.08);}
 
 #suggestions{
   position:absolute;bottom:100%;left:0;right:0;z-index:300;
   background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   border:1px solid var(--border);border-bottom:none;
-  border-radius:12px 12px 0 0;max-height:200px;overflow-y:auto;
+  border-radius:10px 10px 0 0;max-height:180px;overflow-y:auto;
 }
-.sugg{padding:11px 14px;font-size:.75rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);line-height:1.4;transition:all .15s;}
+.sugg{padding:10px 12px;font-size:.72rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);line-height:1.4;transition:all .15s;}
 .sugg:last-child{border-bottom:none;}
 .sugg:active{background:var(--accent-dim);color:var(--accent);}
-.sugg small{display:block;font-size:.6rem;color:var(--muted);margin-top:2px;}
+.sugg small{display:block;font-size:.55rem;color:var(--muted);margin-top:2px;}
 
 input[type=range]{
-  -webkit-appearance:none;width:100%;height:6px;background:var(--card);
+  -webkit-appearance:none;width:100%;height:5px;background:var(--card);
   border-radius:3px;border:1px solid var(--border);outline:none;cursor:pointer;
 }
 input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
   background:linear-gradient(135deg,var(--accent),var(--accent2));border:3px solid var(--bg);
-  box-shadow:0 0 12px var(--accent-glow);cursor:pointer;
+  box-shadow:0 0 10px var(--accent-glow);cursor:pointer;
 }
-.rlabel{text-align:right;font-size:.72rem;font-weight:700;color:var(--accent);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.rlabel{text-align:right;font-size:.68rem;font-weight:700;color:var(--accent);margin-top:3px;font-family:'JetBrains Mono',monospace;}
 
 .row-inline{display:flex;gap:8px;}
 .row-inline>*{flex:1;}
 
 .btn-add{
-  width:100%;padding:14px;border:none;border-radius:14px;
-  font-family:'Inter',sans-serif;font-weight:700;font-size:.82rem;
+  width:100%;padding:13px;border:none;border-radius:12px;
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.78rem;
   letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
   background:linear-gradient(135deg,var(--accent),#00c96a);color:#000;
-  box-shadow:0 4px 24px var(--accent-glow);
+  box-shadow:0 4px 20px var(--accent-glow);
   transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
 }
-.btn-add:active{transform:scale(.97);box-shadow:0 2px 12px var(--accent-glow);}
+.btn-add:active{transform:scale(.97);box-shadow:0 2px 10px var(--accent-glow);}
 .btn-add:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none;}
 .btn-add::after{
   content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
@@ -246,60 +305,60 @@ input[type=range]::-webkit-slider-thumb{
 }
 .btn-add:not(:disabled):active::after{left:100%;}
 
-/* ═══ SAVED GEOFENCES (UBER TRIP CARDS) ═══ */
-.geo-list{margin:14px 0;}
+/* ═══ GEOFENCE CARDS ═══ */
+.geo-list{margin:12px 0;}
 .geo-card{
-  background:var(--card);border:1px solid var(--border);border-radius:14px;
-  padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;
   transition:all .3s cubic-bezier(.4,0,.2,1);animation:cardIn .3s ease;
   position:relative;overflow:hidden;
 }
-@keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 .geo-card::before{
   content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
   background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:0 2px 2px 0;
   opacity:0;transition:opacity .3s;
 }
 .geo-card:active::before{opacity:1;}
-.geo-card.triggered{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow);}
+.geo-card.triggered{border-color:var(--accent);box-shadow:0 0 16px var(--accent-glow);}
 .geo-card.triggered::before{opacity:1;}
 
 .geo-avatar{
-  width:40px;height:40px;border-radius:50%;
+  width:36px;height:36px;border-radius:50%;
   background:linear-gradient(135deg,var(--accent-dim),rgba(0,212,255,0.08));
   display:flex;align-items:center;justify-content:center;
-  font-size:.9rem;font-weight:800;color:var(--accent);flex-shrink:0;
+  font-size:.8rem;font-weight:800;color:var(--accent);flex-shrink:0;
 }
 .geo-info{flex:1;min-width:0;}
-.geo-name{font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.geo-meta{font-size:.6rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px;display:flex;align-items:center;gap:6px;}
-.geo-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--muted);}
+.geo-name{font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.geo-meta{font-size:.55rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.geo-meta .dot{width:3px;height:3px;border-radius:50%;background:var(--muted);}
 .geo-del{
-  width:32px;height:32px;border-radius:50%;border:1px solid var(--border);
-  background:transparent;color:var(--muted);font-size:.75rem;cursor:pointer;
+  width:30px;height:30px;border-radius:50%;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.7rem;cursor:pointer;
   display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;
 }
 .geo-del:active{border-color:var(--red);color:var(--red);background:var(--red-dim);transform:scale(.9);}
 
-/* ═══ START WATCHING BUTTON ═══ */
+/* ═══ START WATCHING ═══ */
 .btn-start-wrap{margin-top:8px;}
 .btn-start{
-  width:100%;padding:16px;border:none;border-radius:14px;
-  font-family:'Inter',sans-serif;font-weight:800;font-size:.9rem;
+  width:100%;padding:14px;border:none;border-radius:12px;
+  font-family:'Inter',sans-serif;font-weight:800;font-size:.85rem;
   letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
   background:linear-gradient(135deg,var(--accent),#00c96a,var(--accent2));
   background-size:200% 200%;animation:gradientShift 4s ease infinite;
-  color:#000;box-shadow:0 6px 30px var(--accent-glow);
+  color:#000;box-shadow:0 4px 24px var(--accent-glow);
   transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
 }
 @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-.btn-start:active{transform:scale(.97);box-shadow:0 2px 16px var(--accent-glow);}
+.btn-start:active{transform:scale(.97);box-shadow:0 2px 14px var(--accent-glow);}
 
 /* ═══ AUTO CALL TOGGLE ═══ */
 .autocall-panel{
   background:linear-gradient(135deg,rgba(0,232,122,0.06),rgba(0,212,255,0.04));
-  border:1px solid rgba(0,232,122,0.15);border-radius:14px;
-  padding:14px 16px;margin-bottom:14px;position:relative;overflow:hidden;
+  border:1px solid rgba(0,232,122,0.15);border-radius:12px;
+  padding:12px 14px;margin-bottom:12px;position:relative;overflow:hidden;
 }
 .autocall-panel::before{
   content:'';position:absolute;top:0;left:0;bottom:0;width:3px;
@@ -307,107 +366,80 @@ input[type=range]::-webkit-slider-thumb{
 }
 .autocall-panel.off{background:var(--card);border-color:var(--border);}
 .autocall-panel.off::before{background:var(--muted2);}
-.autocall-row{display:flex;align-items:center;gap:12px;}
+.autocall-row{display:flex;align-items:center;gap:10px;}
 .autocall-icon{
-  width:40px;height:40px;border-radius:50%;
+  width:36px;height:36px;border-radius:50%;
   background:linear-gradient(135deg,var(--accent),#00c96a);
   display:flex;align-items:center;justify-content:center;
-  font-size:1.1rem;flex-shrink:0;
-  box-shadow:0 0 16px var(--accent-glow);
+  font-size:1rem;flex-shrink:0;
+  box-shadow:0 0 14px var(--accent-glow);
   transition:all .3s;
 }
 .autocall-panel.off .autocall-icon{background:var(--card);box-shadow:none;}
 .autocall-info{flex:1;}
-.autocall-title{font-size:.82rem;font-weight:700;}
-.autocall-desc{font-size:.6rem;color:var(--muted);margin-top:2px;}
+.autocall-title{font-size:.78rem;font-weight:700;}
+.autocall-desc{font-size:.55rem;color:var(--muted);margin-top:2px;}
 .autocall-panel.off .autocall-title{color:var(--muted);}
+
 /* ═══ SIM CARD SELECTOR ═══ */
-.sim-selector-panel {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  margin-bottom: 14px;
+.sim-selector-panel{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  margin-bottom:12px;
 }
-.sim-selector-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  font-size: .82rem;
-  font-weight: 700;
+.sim-selector-title{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;font-size:.78rem;font-weight:700;
 }
-.sim-desc {
-  font-size: .62rem;
-  font-weight: 600;
-  color: var(--accent2);
-  text-transform: uppercase;
-  letter-spacing: .05em;
+.sim-desc{
+  font-size:.58rem;font-weight:600;color:var(--accent2);
+  text-transform:uppercase;letter-spacing:.05em;
 }
-.sim-options {
-  display: flex;
-  gap: 8px;
+.sim-options{display:flex;gap:6px;}
+.sim-opt{
+  flex:1;background:rgba(255,255,255,0.02);border:1px solid var(--border);
+  border-radius:8px;padding:7px 10px;font-size:.68rem;font-weight:600;
+  color:var(--muted);text-align:center;cursor:pointer;transition:all .25s ease;
 }
-.sim-opt {
-  flex: 1;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: .72rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-align: center;
-  cursor: pointer;
-  transition: all .25s ease;
-}
-.sim-opt:active {
-  transform: scale(.96);
-}
-.sim-opt.active {
-  background: linear-gradient(135deg, var(--accent2), #00a8ff);
-  border-color: var(--accent2);
-  color: #050510;
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
-  font-weight: 700;
+.sim-opt:active{transform:scale(.96);}
+.sim-opt.active{
+  background:linear-gradient(135deg,var(--accent2),#00a8ff);
+  border-color:var(--accent2);color:#050510;
+  box-shadow:0 0 10px rgba(0,212,255,0.25);font-weight:700;
 }
 
-/* ═══ SIM PANEL ═══ */
-.toggle-row{
-  display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--border);
-  margin-top:8px;
-}
-.sim-row{
-  display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--border);
-  margin-top:8px;
-}
-.sim-icon{font-size:.85rem;}
-.sim-label{font-size:.65rem;font-weight:600;color:var(--yellow);letter-spacing:.04em;flex:1;}
+/* ═══ TOGGLE / SIM ROW ═══ */
+.toggle-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);margin-top:8px;}
+.sim-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);margin-top:8px;}
+.sim-icon{font-size:.8rem;}
+.sim-label{font-size:.62rem;font-weight:600;color:var(--yellow);letter-spacing:.04em;flex:1;}
 .switch{
-  width:40px;height:22px;border-radius:11px;background:var(--card);
+  width:38px;height:20px;border-radius:10px;background:var(--card);
   border:1px solid var(--border);position:relative;transition:all .25s ease;cursor:pointer;
 }
 .switch.on{background:var(--yellow);border-color:var(--yellow);}
 .switch.on-green{background:var(--accent);border-color:var(--accent);}
 .switch::after{
-  content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;
+  content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;
   border-radius:50%;background:#fff;transition:all .25s ease;box-shadow:0 1px 4px rgba(0,0,0,0.2);
 }
 .switch.on::after,.switch.on-green::after{left:20px;}
 .btn-sim-walk{
-  margin-top:8px;width:100%;padding:10px;border:1px solid rgba(255,194,51,0.2);
-  border-radius:10px;background:rgba(255,194,51,0.06);color:var(--yellow);
-  font-family:'Inter',sans-serif;font-weight:700;font-size:.7rem;
+  margin-top:6px;width:100%;padding:9px;border:1px solid rgba(255,194,51,0.2);
+  border-radius:8px;background:rgba(255,194,51,0.06);color:var(--yellow);
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.65rem;
   letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:all .15s;
 }
 .btn-sim-walk:active{background:rgba(255,194,51,0.12);transform:scale(.97);}
 
 /* ═══ LOG PANEL ═══ */
-.log-section{border-top:1px solid var(--border);padding-top:10px;margin-top:8px;}
+.log-section{border-top:1px solid var(--border);padding-top:8px;margin-top:8px;}
 .log{
-  background:var(--card);border:1px solid var(--border);border-radius:10px;
-  padding:8px 12px;font-size:.55rem;font-family:'JetBrains Mono',monospace;
-  color:var(--muted);line-height:2;max-height:80px;overflow-y:auto;
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-size:.5rem;font-family:'JetBrains Mono',monospace;
+  color:var(--muted);line-height:2;max-height:70px;overflow-y:auto;
 }
 .log .ok{color:var(--accent);display:block;}.log .warn{color:var(--yellow);display:block;}
 .log .err{color:var(--red);display:block;}.log .inf{color:var(--text);display:block;}
@@ -421,71 +453,66 @@ input[type=range]::-webkit-slider-thumb{
 .overlay.show{display:flex;}
 .abox{
   background:linear-gradient(180deg,rgba(14,14,24,0.95),rgba(7,7,14,0.98));
-  border:1px solid var(--accent);border-radius:24px;padding:40px 28px;
-  max-width:320px;width:90%;text-align:center;
-  box-shadow:0 0 80px var(--accent-glow),0 0 160px rgba(0,232,122,0.06);
+  border:1px solid var(--accent);border-radius:20px;padding:32px 24px;
+  max-width:300px;width:90%;text-align:center;
+  box-shadow:0 0 60px var(--accent-glow),0 0 120px rgba(0,232,122,0.06);
   animation:alertPop .4s cubic-bezier(.2,0,.1,1);
 }
 @keyframes alertPop{from{transform:scale(.8) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
 
 .call-icon{
-  width:72px;height:72px;border-radius:50%;
+  width:64px;height:64px;border-radius:50%;
   background:linear-gradient(135deg,var(--accent),#00c96a);
   display:flex;align-items:center;justify-content:center;
-  font-size:2rem;margin:0 auto 20px;
-  box-shadow:0 0 40px var(--accent-glow),0 0 80px rgba(0,232,122,0.15);
+  font-size:1.6rem;margin:0 auto 16px;
+  box-shadow:0 0 32px var(--accent-glow),0 0 64px rgba(0,232,122,0.15);
   animation:callRing .5s ease infinite alternate;
 }
 @keyframes callRing{from{transform:rotate(-12deg) scale(1)}to{transform:rotate(12deg) scale(1.08)}}
 
-.abox h2{font-size:1.2rem;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
-.abox .subtitle{font-size:.7rem;color:var(--muted);margin-bottom:20px;}
-.abox .aname{font-size:1.2rem;font-weight:800;margin:10px 0 4px;}
-.abox .anum{font-size:.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:24px;}
+.abox h2{font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+.abox .subtitle{font-size:.65rem;color:var(--muted);margin-bottom:16px;}
+.abox .aname{font-size:1.1rem;font-weight:800;margin:8px 0 4px;}
+.abox .anum{font-size:.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:20px;}
 .btn-call{
-  width:100%;padding:16px;
+  width:100%;padding:14px;
   background:linear-gradient(135deg,var(--accent),#00c96a);
-  color:#000;border:none;border-radius:14px;
-  font-family:'Inter',sans-serif;font-weight:800;font-size:.9rem;
-  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;margin-bottom:10px;
-  box-shadow:0 6px 28px var(--accent-glow);transition:all .15s;
+  color:#000;border:none;border-radius:12px;
+  font-family:'Inter',sans-serif;font-weight:800;font-size:.85rem;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;margin-bottom:8px;
+  box-shadow:0 4px 24px var(--accent-glow);transition:all .15s;
 }
 .btn-call:active{transform:scale(.97);}
 .btn-dis{
-  background:none;border:1px solid var(--border);border-radius:10px;padding:12px;
-  color:var(--muted);font-size:.72rem;cursor:pointer;width:100%;
+  background:none;border:1px solid var(--border);border-radius:8px;padding:10px;
+  color:var(--muted);font-size:.68rem;cursor:pointer;width:100%;
   font-family:'Inter',sans-serif;font-weight:600;transition:all .15s;
 }
 .btn-dis:active{border-color:var(--muted);color:var(--text);}
 
 /* ═══ PERMISSION BANNER ═══ */
 .perm-banner{
-  position:fixed;top:56px;left:12px;right:12px;z-index:1050;
+  position:fixed;top:calc(var(--header-h) + var(--safe-top) + 4px);left:10px;right:10px;z-index:1050;
   background:rgba(255,59,92,0.1);backdrop-filter:blur(12px);
-  border:1px solid rgba(255,59,92,0.2);border-radius:14px;
-  padding:12px 16px;display:none;align-items:center;gap:10px;
-  font-size:.72rem;color:var(--red);font-weight:500;
+  border:1px solid rgba(255,59,92,0.2);border-radius:12px;
+  padding:10px 14px;display:none;align-items:center;gap:8px;
+  font-size:.68rem;color:var(--red);font-weight:500;
   animation:bannerIn .4s cubic-bezier(.4,0,.2,1);
-  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+  box-shadow:0 4px 24px rgba(0,0,0,0.3);
 }
 .perm-banner.show{display:flex;}
-@keyframes bannerIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes bannerIn{from{transform:translateY(-16px);opacity:0}to{transform:translateY(0);opacity:1}}
 .perm-banner button{
-  margin-left:auto;padding:8px 16px;border:1px solid var(--red);
+  margin-left:auto;padding:6px 14px;border:1px solid var(--red);
   border-radius:8px;background:var(--red-dim);color:var(--red);
-  font-family:'Inter',sans-serif;font-weight:700;font-size:.65rem;
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.6rem;
   cursor:pointer;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase;
 }
 
-/* ═══ MAP OVERLAY GRADIENT ═══ */
+/* ═══ MAP GRADIENT (only top) ═══ */
 .map-gradient-top{
-  position:fixed;top:0;left:0;right:0;height:120px;z-index:2;
-  background:linear-gradient(180deg,rgba(7,7,14,0.8) 0%,transparent 100%);
-  pointer-events:none;
-}
-.map-gradient-bottom{
-  position:fixed;bottom:0;left:0;right:0;height:180px;z-index:2;
-  background:linear-gradient(0deg,rgba(7,7,14,0.9) 0%,transparent 100%);
+  position:fixed;top:0;left:0;right:0;height:100px;z-index:2;
+  background:linear-gradient(180deg,rgba(7,7,14,0.7) 0%,transparent 100%);
   pointer-events:none;
 }
 </style>
@@ -493,16 +520,29 @@ input[type=range]::-webkit-slider-thumb{
 <body>
 
 <div class="map-gradient-top"></div>
-<div class="map-gradient-bottom"></div>
 
 <header>
   <div class="logo-dot"></div>
   <h1>Geo<span>Call</span></h1>
   <div class="header-actions">
     <div class="status-pill" id="statusPill">IDLE</div>
+    <div class="map-style-btn" id="mapStyleBtn" onclick="toggleMapStyleMenu()">🗺</div>
     <div class="recenter-btn" id="recenterBtn" onclick="recenterMap()">⊕</div>
   </div>
 </header>
+
+<!-- Map style dropdown -->
+<div class="map-style-dropdown" id="mapStyleDropdown">
+  <div class="map-style-opt" id="msStandard" onclick="setMapStyle('standard')">
+    <div class="dot dot-standard"></div>Standard
+  </div>
+  <div class="map-style-opt active" id="msDark" onclick="setMapStyle('dark')">
+    <div class="dot dot-dark"></div>Dark
+  </div>
+  <div class="map-style-opt" id="msSatellite" onclick="setMapStyle('satellite')">
+    <div class="dot dot-satellite"></div>Satellite
+  </div>
+</div>
 
 <div id="map"></div>
 
@@ -513,108 +553,112 @@ input[type=range]::-webkit-slider-thumb{
 </div>
 
 <div id="permBanner" class="perm-banner">
-  <span>⚠️ Permissions required for auto-call</span>
+  <span>⚠️ Permissions required</span>
   <button onclick="requestPerms()">Grant</button>
 </div>
 
-<!-- UBER-STYLE BOTTOM BAR -->
-<div class="eta-bar show" id="etaBar">
-  <div class="eta-card">
-    <div class="eta-handle" id="etaHandle"></div>
-
-    <!-- TRACKING VIEW -->
-    <div class="eta-tracking" id="etaTracking">
-      <div class="eta-row">
-        <div class="eta-avatar" id="etaAvatar">A</div>
-        <div class="eta-info">
-          <div class="eta-name" id="etaName">--</div>
-          <div class="eta-phone" id="etaPhone">--</div>
-        </div>
-        <div class="eta-dist-pill" id="etaDist">--</div>
-      </div>
-      <div class="eta-progress">
-        <div class="eta-progress-bar"><div class="eta-progress-fill" id="etaFill" style="width:0%"></div></div>
-        <div class="eta-progress-text">
-          <span>APPROACHING</span>
-          <span id="etaPct">0%</span>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-stop" onclick="stopWatching()">⏹ Stop</button>
-      </div>
-
-      <div class="sim-row" id="simRowTracking" style="display:none">
-        <span class="sim-icon">🧪</span>
-        <span class="sim-label">Simulation</span>
-        <button class="btn-sim-walk" onclick="startSimWalk()" style="width:auto;margin:0;padding:8px 14px;">▶ Walk</button>
-      </div>
+<!-- DRAGGABLE BOTTOM SHEET -->
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="sheet-inner">
+    <div class="sheet-handle-area" id="sheetHandle">
+      <div class="sheet-handle"></div>
     </div>
 
-    <!-- SETUP VIEW -->
-    <div class="eta-setup" id="etaSetup">
-      <div class="setup-section">
-        <div class="lbl">📍 Where are you going?</div>
-        <div class="search-wrap">
-          <input type="text" id="placeSearch" placeholder="Search a place..." autocomplete="off"/>
-          <div id="suggestions"></div>
-        </div>
-      </div>
-
-      <div class="setup-section">
-        <div class="row-inline">
-          <div><div class="lbl">Contact</div><input type="text" id="contactName" placeholder="Name"/></div>
-          <div><div class="lbl">Phone</div><input type="tel" id="phoneNum" placeholder="+91 ..."/></div>
-        </div>
-      </div>
-
-      <div class="setup-section">
-        <div class="lbl">Trigger Radius</div>
-        <input type="range" id="radiusSlider" min="50" max="3000" value="300" step="50"/>
-        <div class="rlabel" id="radiusVal">300 m</div>
-      </div>
-
-      <button class="btn-add" id="addBtn" onclick="addGeofence()">＋ Add Geofence</button>
-
-      <!-- AUTO CALL TOGGLE -->
-      <div class="autocall-panel" id="autocallPanel" style="margin-top:14px">
-        <div class="autocall-row">
-          <div class="autocall-icon">📞</div>
-          <div class="autocall-info">
-            <div class="autocall-title">Auto Call</div>
-            <div class="autocall-desc" id="autocallDesc">Calls placed automatically on arrival</div>
+    <div class="sheet-content" id="sheetContent">
+      <!-- TRACKING VIEW -->
+      <div class="eta-tracking" id="etaTracking">
+        <div class="eta-row">
+          <div class="eta-avatar" id="etaAvatar">A</div>
+          <div class="eta-info">
+            <div class="eta-name" id="etaName">--</div>
+            <div class="eta-phone" id="etaPhone">--</div>
           </div>
-          <div class="switch on-green" id="autocallSwitch" onclick="toggleAutoCall()"></div>
+          <div class="eta-dist-pill" id="etaDist">--</div>
+        </div>
+        <div class="eta-progress">
+          <div class="eta-progress-bar"><div class="eta-progress-fill" id="etaFill" style="width:0%"></div></div>
+          <div class="eta-progress-text">
+            <span>APPROACHING</span>
+            <span id="etaPct">0%</span>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-stop" onclick="stopWatching()">⏹ Stop</button>
+        </div>
+
+        <div class="sim-row" id="simRowTracking" style="display:none">
+          <span class="sim-icon">🧪</span>
+          <span class="sim-label">Simulation</span>
+          <button class="btn-sim-walk" onclick="startSimWalk()" style="width:auto;margin:0;padding:8px 12px;">▶ Walk</button>
         </div>
       </div>
 
-      <!-- SIM CARD SELECTION -->
-      <div class="sim-selector-panel" id="simPanel" style="margin-top:14px">
-        <div class="sim-selector-title">
-          <span>📶 Calling SIM Card</span>
-          <span class="sim-desc" id="simDesc">Default SIM</span>
+      <!-- SETUP VIEW -->
+      <div class="eta-setup" id="etaSetup">
+        <div class="setup-section">
+          <div class="lbl">📍 Where are you going?</div>
+          <div class="search-wrap">
+            <input type="text" id="placeSearch" placeholder="Search a place..." autocomplete="off"/>
+            <div id="suggestions"></div>
+          </div>
         </div>
-        <div class="sim-options">
-          <div class="sim-opt active" id="simOptDefault" onclick="setSimSlot(-1)">Default</div>
-          <div class="sim-opt" id="simOpt1" onclick="setSimSlot(0)">SIM 1</div>
-          <div class="sim-opt" id="simOpt2" onclick="setSimSlot(1)">SIM 2</div>
+
+        <div class="setup-section">
+          <div class="row-inline">
+            <div><div class="lbl">Contact</div><input type="text" id="contactName" placeholder="Name"/></div>
+            <div><div class="lbl">Phone</div><input type="tel" id="phoneNum" placeholder="+91 ..."/></div>
+          </div>
         </div>
-      </div>
 
-      <div class="geo-list" id="geoList"></div>
+        <div class="setup-section">
+          <div class="lbl">Trigger Radius</div>
+          <input type="range" id="radiusSlider" min="50" max="3000" value="300" step="50"/>
+          <div class="rlabel" id="radiusVal">300 m</div>
+        </div>
 
-      <div class="btn-start-wrap" id="startWrap" style="display:none">
-        <button class="btn-start" onclick="startWatching()">▶ Start Watching</button>
-      </div>
+        <button class="btn-add" id="addBtn" onclick="addGeofence()">＋ Add Geofence</button>
 
-      <div class="sim-row">
-        <span class="sim-icon">🧪</span>
-        <span class="sim-label">Simulation Mode</span>
-        <div class="switch" id="simSwitch" onclick="toggleSim()"></div>
-      </div>
+        <!-- AUTO CALL TOGGLE -->
+        <div class="autocall-panel" id="autocallPanel" style="margin-top:12px">
+          <div class="autocall-row">
+            <div class="autocall-icon">📞</div>
+            <div class="autocall-info">
+              <div class="autocall-title">Auto Call</div>
+              <div class="autocall-desc" id="autocallDesc">Calls placed automatically on arrival</div>
+            </div>
+            <div class="switch on-green" id="autocallSwitch" onclick="toggleAutoCall()"></div>
+          </div>
+        </div>
 
-      <div class="log-section">
-        <div class="lbl" style="margin-bottom:4px">Log</div>
-        <div class="log" id="log"><span class="inf">Ready. Add a geofence.</span></div>
+        <!-- SIM CARD SELECTION -->
+        <div class="sim-selector-panel" id="simPanel">
+          <div class="sim-selector-title">
+            <span>📶 Calling SIM</span>
+            <span class="sim-desc" id="simDesc">Default SIM</span>
+          </div>
+          <div class="sim-options">
+            <div class="sim-opt active" id="simOptDefault" onclick="setSimSlot(-1)">Default</div>
+            <div class="sim-opt" id="simOpt1" onclick="setSimSlot(0)">SIM 1</div>
+            <div class="sim-opt" id="simOpt2" onclick="setSimSlot(1)">SIM 2</div>
+          </div>
+        </div>
+
+        <div class="geo-list" id="geoList"></div>
+
+        <div class="btn-start-wrap" id="startWrap" style="display:none">
+          <button class="btn-start" onclick="startWatching()">▶ Start Watching</button>
+        </div>
+
+        <div class="sim-row">
+          <span class="sim-icon">🧪</span>
+          <span class="sim-label">Simulation Mode</span>
+          <div class="switch" id="simSwitch" onclick="toggleSim()"></div>
+        </div>
+
+        <div class="log-section">
+          <div class="lbl" style="margin-bottom:4px">Log</div>
+          <div class="log" id="log"><span class="inf">Ready. Add a geofence.</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -638,13 +682,57 @@ input[type=range]::-webkit-slider-thumb{
 const isAndroid = typeof NativeBridge !== 'undefined';
 function nativeCall(m,...a){if(isAndroid)try{return NativeBridge[m](...a)}catch(e){}}
 
-// ═══════════════════════ DARK MAP ═══════════════════════
+// ═══════════════════════ MAP TILES ═══════════════════════
 const map = L.map('map',{zoomControl:false,attributionControl:false}).setView([20.5937,78.9629],5);
 
-// Dark tile layer (CartoDB Dark Matter - Uber-like)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-  maxZoom:20,subdomains:'abcd'
-}).addTo(map);
+// Tile layers
+const tileLayers = {
+  standard: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19
+  }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    maxZoom:20,subdomains:'abcd'
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+    maxZoom:19
+  })
+};
+// Label overlay for satellite
+const labelOverlay = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{
+  maxZoom:20,subdomains:'abcd',pane:'overlayPane'
+});
+
+let currentStyle = localStorage.getItem('mapStyle') || 'dark';
+tileLayers[currentStyle].addTo(map);
+if(currentStyle==='satellite') labelOverlay.addTo(map);
+
+function setMapStyle(style){
+  Object.values(tileLayers).forEach(l=>map.removeLayer(l));
+  map.removeLayer(labelOverlay);
+  tileLayers[style].addTo(map);
+  if(style==='satellite') labelOverlay.addTo(map);
+  currentStyle=style;
+  localStorage.setItem('mapStyle',style);
+  // Update dropdown UI
+  document.querySelectorAll('.map-style-opt').forEach(el=>el.classList.remove('active'));
+  document.getElementById(style==='standard'?'msStandard':style==='dark'?'msDark':'msSatellite').classList.add('active');
+  // Update gradient for light maps
+  document.querySelector('.map-gradient-top').style.background =
+    style==='standard'
+      ? 'linear-gradient(180deg,rgba(230,230,230,0.7) 0%,transparent 100%)'
+      : 'linear-gradient(180deg,rgba(7,7,14,0.7) 0%,transparent 100%)';
+  document.getElementById('mapStyleDropdown').classList.remove('show');
+}
+
+function toggleMapStyleMenu(){
+  document.getElementById('mapStyleDropdown').classList.toggle('show');
+}
+// Close dropdown on outside click
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#mapStyleBtn')&&!e.target.closest('#mapStyleDropdown')){
+    document.getElementById('mapStyleDropdown').classList.remove('show');
+  }
+});
 
 // Custom markers
 function createUserIcon(){
@@ -669,19 +757,115 @@ function createTargetIcon(){
 
 // ═══════════════════════ STATE ═══════════════════════
 let geofences=JSON.parse(localStorage.getItem('geofences')||'[]');
-let autoCallEnabled=localStorage.getItem('autoCall')!=='false'; // ON by default
-let simSlot=parseInt(localStorage.getItem('simSlot')||'-1'); // -1 = default, 0 = SIM 1, 1 = SIM 2
+let autoCallEnabled=localStorage.getItem('autoCall')!=='false';
+let simSlot=parseInt(localStorage.getItem('simSlot')||'-1');
 let pendingTarget=null,myMarker=null,watching=false,simMode=false;
 let simWalkInterval=null,watchId=null,markers={},routeLine=null;
 let myLat=null,myLng=null,followUser=true,initialDistances={};
 let pendingPin=null,pendingCircle=null;
 
-// ═══════════════════════ SHEET TOGGLE ═══════════════════════
-let etaExpanded=true;
-document.getElementById('etaHandle').addEventListener('click',()=>{
-  etaExpanded=!etaExpanded;
-  // Simple toggle - could add animation
+// ═══════════════════════ BOTTOM SHEET DRAG ═══════════════════════
+const sheet = document.getElementById('bottomSheet');
+const sheetHandle = document.getElementById('sheetHandle');
+const sheetContent = document.getElementById('sheetContent');
+const vh = ()=> window.innerHeight;
+
+// Snap positions (from bottom): peek, half, full
+const SNAP_PEEK = 68;
+function snapHalf(){ return vh() * 0.46; }
+function snapFull(){ return vh() - 52; } // leave room for header
+
+let sheetY = 0; // translateY offset from natural bottom position
+let sheetState = 'half'; // 'peek', 'half', 'full'
+let dragStartY = 0;
+let dragStartSheetY = 0;
+let isDragging = false;
+
+function setSheetPosition(px){
+  // px = height of visible sheet from bottom
+  const translate = vh() - px;
+  sheet.style.transform = `translateY(${translate}px)`;
+  sheetY = translate;
+
+  // Invalidate map size when sheet changes
+  setTimeout(()=>map.invalidateSize(),350);
+}
+
+function snapSheet(state){
+  sheetState = state;
+  sheet.classList.remove('dragging');
+  let h;
+  if(state==='peek') h = SNAP_PEEK;
+  else if(state==='half') h = snapHalf();
+  else h = snapFull();
+  setSheetPosition(h);
+}
+
+// Touch events on handle
+sheetHandle.addEventListener('touchstart', e=>{
+  isDragging = true;
+  dragStartY = e.touches[0].clientY;
+  dragStartSheetY = sheetY;
+  sheet.classList.add('dragging');
+},{passive:true});
+
+document.addEventListener('touchmove', e=>{
+  if(!isDragging) return;
+  const dy = e.touches[0].clientY - dragStartY;
+  const newY = Math.max(vh()-snapFull(), Math.min(vh()-SNAP_PEEK, dragStartSheetY + dy));
+  sheet.style.transform = `translateY(${newY}px)`;
+  sheetY = newY;
+},{passive:true});
+
+document.addEventListener('touchend', ()=>{
+  if(!isDragging) return;
+  isDragging = false;
+  sheet.classList.remove('dragging');
+
+  const visibleH = vh() - sheetY;
+  const halfH = snapHalf();
+  const fullH = snapFull();
+
+  // Snap to nearest
+  const dPeek = Math.abs(visibleH - SNAP_PEEK);
+  const dHalf = Math.abs(visibleH - halfH);
+  const dFull = Math.abs(visibleH - fullH);
+  const min = Math.min(dPeek, dHalf, dFull);
+
+  if(min === dPeek) snapSheet('peek');
+  else if(min === dFull) snapSheet('full');
+  else snapSheet('half');
 });
+
+// Double-tap handle to toggle between peek and full
+let lastHandleTap = 0;
+sheetHandle.addEventListener('click', ()=>{
+  const now = Date.now();
+  if(now - lastHandleTap < 350){
+    // Double tap
+    if(sheetState==='peek') snapSheet('full');
+    else snapSheet('peek');
+  } else {
+    // Single tap — cycle: peek → half → full → peek
+    if(sheetState==='peek') snapSheet('half');
+    else if(sheetState==='half') snapSheet('full');
+    else snapSheet('peek');
+  }
+  lastHandleTap = now;
+});
+
+// Initialize sheet at half
+snapSheet('half');
+
+// Re-snap on resize
+window.addEventListener('resize', ()=> snapSheet(sheetState));
+
+// Prevent sheet content scroll from dragging the sheet
+sheetContent.addEventListener('touchstart', e=>{
+  // If at top of scroll and swiping down, don't prevent
+  // Otherwise let scroll happen naturally
+  e.stopPropagation();
+},{passive:true});
 
 // ═══════════════════════ PLACE SEARCH ═══════════════════════
 let searchTimer=null;
@@ -693,6 +877,11 @@ inp.addEventListener('input',()=>{
   const q=inp.value.trim();
   if(q.length<2){sugBox.innerHTML='';return;}
   searchTimer=setTimeout(()=>searchPlace(q),350);
+});
+
+// When input focused, expand sheet to at least half
+inp.addEventListener('focus',()=>{
+  if(sheetState==='peek') snapSheet('half');
 });
 
 async function searchPlace(q){
@@ -762,7 +951,7 @@ function animateMyPosition(toLat,toLng){
   const anim=()=>{
     step++;
     const t=step/steps;
-    const ease=t<.5?2*t*t:(4-2*t)*t-1; // ease in-out
+    const ease=t<.5?2*t*t:(4-2*t)*t-1;
     myLat=fromLat+(toLat-fromLat)*ease;
     myLng=fromLng+(toLng-fromLng)*ease;
     myMarker.setLatLng([myLat,myLng]);
@@ -863,7 +1052,6 @@ function renderMap(){
 function startWatching(){
   geofences.forEach(g=>g.triggered=false);save();
 
-  // Record initial distances for progress bar
   if(myLat){
     geofences.forEach(g=>{initialDistances[g.id]=haversine(myLat,myLng,g.lat,g.lng);});
   }
@@ -889,6 +1077,9 @@ function startWatching(){
   const hud=document.getElementById('distHud');
   hud.classList.add('show');
 
+  // Collapse sheet to peek to show map
+  snapSheet('peek');
+
   updateEtaCard();render();renderMap();
   addLog(simMode?'SIM started — tap map to move':'GPS tracking started','ok');
 }
@@ -907,6 +1098,7 @@ function stopWatching(){
   document.getElementById('statusPill').className='status-pill';
   document.getElementById('distHud').classList.remove('show');
 
+  snapSheet('half');
   render();renderMap();
   addLog('Stopped','warn');
 }
@@ -931,7 +1123,6 @@ function checkGeofences(lat,lng){
     }
   });
 
-  // Update HUD
   if(nearestG){
     const hud=document.getElementById('distHud');
     const val=document.getElementById('distVal');
@@ -940,10 +1131,8 @@ function checkGeofences(lat,lng){
     ct.textContent=nearestG.contactName;
     hud.className='dist-hud show'+(nearest<500?' close':'');
 
-    // ETA card
     document.getElementById('etaDist').textContent=nearest>=1000?(nearest/1000).toFixed(1)+'km':Math.round(nearest)+'m';
 
-    // Progress bar
     const initD=initialDistances[nearestG.id]||nearest;
     if(initD>0){
       const pct=Math.max(0,Math.min(100,(1-nearest/initD)*100));
@@ -1010,7 +1199,6 @@ function fireAlert(g){
   }
   if(autoCallEnabled){
     addLog(`🚨 ARRIVED! Auto-calling ${g.contactName}...`,'ok');
-    // On Android, service handles auto-call. Dismiss overlay after delay.
     if(isAndroid)setTimeout(()=>document.getElementById('overlay').classList.remove('show'),5000);
   }else{
     addLog(`📍 ARRIVED near ${g.contactName}. Tap to call.`,'warn');
@@ -1084,7 +1272,6 @@ document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))sugBo
 
 // ═══════════════════════ INIT ═══════════════════════
 render();renderMap();
-// Init auto-call toggle UI
 (function initAutoCallUI(){
   const sw=document.getElementById('autocallSwitch');
   const panel=document.getElementById('autocallPanel');
@@ -1095,7 +1282,6 @@ render();renderMap();
   updateSimSelectorUI();
 })();
 setTimeout(checkPermissions,800);
-// Try to get initial position
 if(navigator.geolocation){
   navigator.geolocation.getCurrentPosition(p=>{
     animateMyPosition(p.coords.latitude,p.coords.longitude);
