@@ -1,4 +1,9 @@
+<p align="center">
+  <img src="banner.png" alt="GEO-CALL Banner" width="100%"/>
+</p>
+
 # GeoCall — Android Auto-Call Location & Scheduling App
+
 
 A premium, fully featured Android application that:
 1. **Automatically places a phone call** (or triggers a manual call overlay) when you enter a set geographic radius.
